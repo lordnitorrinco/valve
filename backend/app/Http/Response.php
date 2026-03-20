@@ -3,14 +3,14 @@
 /**
  * HTTP response helper.
  *
- * Provides a consistent JSON API response format and handles
- * CORS headers for cross-origin requests from the frontend.
+ * All terminal methods throw HaltException instead of calling exit(),
+ * making every code path unit-testable. The front controller catches
+ * HaltException and sends the actual HTTP response.
  */
 class Response
 {
     /**
      * Set CORS headers to allow requests from the frontend origin.
-     * Called on every request (including OPTIONS preflight).
      *
      * @param string $allowedOrigin  The permitted origin domain
      */
@@ -24,7 +24,7 @@ class Response
     }
 
     /**
-     * Send a JSON response and terminate execution.
+     * Build a JSON response and halt execution via HaltException.
      *
      * @param array $data    Response payload
      * @param int   $status  HTTP status code
@@ -32,20 +32,17 @@ class Response
     public static function json(array $data, int $status = 200): never
     {
         http_response_code($status);
-        echo json_encode($data);
-        exit;
+        throw new HaltException($status, json_encode($data));
     }
 
-    /**
-     * Send a 200 OK JSON response.
-     */
+    /** Send a 200 OK JSON response. */
     public static function success(array $data): never
     {
         self::json($data, 200);
     }
 
     /**
-     * Send an error JSON response with the given status code.
+     * Send an error JSON response.
      *
      * @param string $message  Human-readable error description
      * @param int    $status   HTTP error code (default: 400)
@@ -56,12 +53,10 @@ class Response
         self::json(array_merge(['error' => $message], $extra), $status);
     }
 
-    /**
-     * Send a 204 No Content response (used for OPTIONS preflight).
-     */
+    /** Send a 204 No Content response (used for OPTIONS preflight). */
     public static function noContent(): never
     {
         http_response_code(204);
-        exit;
+        throw new HaltException(204);
     }
 }

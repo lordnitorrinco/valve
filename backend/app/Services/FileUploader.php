@@ -76,11 +76,21 @@ class FileUploader
         $filename = bin2hex(random_bytes(16)) . '.' . $extension;
         $destination = $this->directory . '/' . $filename;
 
-        if (!move_uploaded_file($file['tmp_name'], $destination)) {
+        if (!$this->moveFile($file['tmp_name'], $destination)) {
             throw new RuntimeException('Failed to save uploaded file');
         }
 
         return $filename;
+    }
+
+    /**
+     * Move a file to its final destination. Extracted for testability —
+     * subclasses can override with copy() for unit tests where
+     * move_uploaded_file() only works during real HTTP uploads.
+     */
+    protected function moveFile(string $from, string $to): bool
+    {
+        return move_uploaded_file($from, $to);
     }
 
     /**

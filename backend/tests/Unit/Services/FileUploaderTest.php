@@ -4,9 +4,16 @@ use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\Test;
 
 /**
- * Unit tests for FileUploader.
- * Covers size limits, extensions, upload errors, magic-byte verification, and filename conventions.
+ * Testable subclass that uses copy() instead of move_uploaded_file().
  */
+class TestFileUploader extends FileUploader
+{
+    protected function moveFile(string $from, string $to): bool
+    {
+        return copy($from, $to);
+    }
+}
+
 class FileUploaderTest extends TestCase
 {
     private string $tmpDir;
@@ -21,21 +28,25 @@ class FileUploaderTest extends TestCase
 
     protected function tearDown(): void
     {
-        $files = glob($this->tmpDir . '/*');
-        foreach ($files as $file) {
-            unlink($file);
-        }
-        if (is_dir($this->tmpDir . '/subdir')) {
-            rmdir($this->tmpDir . '/subdir');
-        }
+        foreach (glob($this->tmpDir . '/*') as $file) unlink($file);
+        if (is_dir($this->tmpDir . '/subdir')) rmdir($this->tmpDir . '/subdir');
         rmdir($this->tmpDir);
     }
 
     private function uploader(array $overrides = []): FileUploader
     {
         return new FileUploader(array_merge([
-            'directory'          => $this->tmpDir,
-            'max_size'           => 10 * 1024 * 1024,
+            'directory' => $this->tmpDir,
+            'max_size' => 10 * 1024 * 1024,
+            'allowed_extensions' => ['pdf', 'doc', 'docx'],
+        ], $overrides));
+    }
+
+    private function testUploader(array $overrides = []): TestFileUploader
+    {
+        return new TestFileUploader(array_merge([
+            'directory' => $this->tmpDir,
+            'max_size' => 10 * 1024 * 1024,
             'allowed_extensions' => ['pdf', 'doc', 'docx'],
         ], $overrides));
     }
@@ -47,7 +58,6 @@ class FileUploaderTest extends TestCase
         return $path;
     }
 
-    /** Tests that files larger than max_size throw before persisting. */
     #[Test]
     public function rejects_file_exceeding_max_size(): void
     {
@@ -56,20 +66,13 @@ class FileUploaderTest extends TestCase
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('File exceeds maximum size');
-
         try {
-            $uploader->upload([
-                'name'     => 'big.pdf',
-                'tmp_name' => $tmpFile,
-                'error'    => UPLOAD_ERR_OK,
-                'size'     => 100,
-            ]);
+            $uploader->upload(['name' => 'big.pdf', 'tmp_name' => $tmpFile, 'error' => UPLOAD_ERR_OK, 'size' => 100]);
         } finally {
             @unlink($tmpFile);
         }
     }
 
-    /** Tests that disallowed extensions are rejected with a clear message. */
     #[Test]
     public function rejects_disallowed_file_extension(): void
     {
@@ -78,147 +81,115 @@ class FileUploaderTest extends TestCase
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('File type not allowed');
-
         try {
-            $uploader->upload([
-                'name'     => 'malware.exe',
-                'tmp_name' => $tmpFile,
-                'error'    => UPLOAD_ERR_OK,
-                'size'     => 4,
-            ]);
+            $uploader->upload(['name' => 'malware.exe', 'tmp_name' => $tmpFile, 'error' => UPLOAD_ERR_OK, 'size' => 4]);
         } finally {
             @unlink($tmpFile);
         }
     }
 
-    /** Tests that UPLOAD_ERR_NO_FILE yields null without throwing. */
     #[Test]
     public function returns_null_on_upload_error(): void
     {
-        $uploader = $this->uploader();
-        $result = $uploader->upload([
-            'name'     => 'test.pdf',
-            'tmp_name' => '',
-            'error'    => UPLOAD_ERR_NO_FILE,
-            'size'     => 0,
+        $result = $this->uploader()->upload([
+            'name' => 'test.pdf', 'tmp_name' => '', 'error' => UPLOAD_ERR_NO_FILE, 'size' => 0,
         ]);
-
         $this->assertNull($result);
     }
 
-    /** Tests that declared extension must match file magic bytes (e.g. fake PDF). */
     #[Test]
     public function rejects_file_with_mismatched_magic_bytes(): void
     {
-        $uploader = $this->uploader();
         $tmpFile = $this->createTempFile('NOT_A_PDF_CONTENT');
-
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('File content does not match extension');
-
         try {
-            $uploader->upload([
-                'name'     => 'fake.pdf',
-                'tmp_name' => $tmpFile,
-                'error'    => UPLOAD_ERR_OK,
-                'size'     => 18,
-            ]);
+            $this->uploader()->upload(['name' => 'fake.pdf', 'tmp_name' => $tmpFile, 'error' => UPLOAD_ERR_OK, 'size' => 18]);
         } finally {
             @unlink($tmpFile);
         }
     }
 
-    /** Tests that PDF magic bytes pass content check; failure is then from move_uploaded_file in CLI. */
-    #[Test]
-    public function pdf_with_correct_magic_bytes_passes_verification(): void
-    {
-        $uploader = $this->uploader();
-        $tmpFile = $this->createTempFile('%PDF-1.4 some content');
-
-        // move_uploaded_file only works in HTTP context, so we expect it to fail
-        // at the move step, NOT at magic bytes verification
-        try {
-            $uploader->upload([
-                'name'     => 'real.pdf',
-                'tmp_name' => $tmpFile,
-                'error'    => UPLOAD_ERR_OK,
-                'size'     => 21,
-            ]);
-            $this->fail('Expected RuntimeException for move_uploaded_file');
-        } catch (RuntimeException $e) {
-            // The error should be about moving, NOT about magic bytes
-            $this->assertStringContainsString('Failed to save', $e->getMessage());
-        } finally {
-            @unlink($tmpFile);
-        }
-    }
-
-    /** Tests that DOCX extension requires ZIP magic bytes; wrong content is rejected. */
     #[Test]
     public function docx_with_wrong_magic_bytes_is_rejected(): void
     {
-        $uploader = $this->uploader();
         $tmpFile = $this->createTempFile('NOT_A_DOCX');
-
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('File content does not match extension');
-
         try {
-            $uploader->upload([
-                'name'     => 'fake.docx',
-                'tmp_name' => $tmpFile,
-                'error'    => UPLOAD_ERR_OK,
-                'size'     => 10,
-            ]);
+            $this->uploader()->upload(['name' => 'fake.docx', 'tmp_name' => $tmpFile, 'error' => UPLOAD_ERR_OK, 'size' => 10]);
         } finally {
             @unlink($tmpFile);
         }
     }
 
-    /** Tests that random_bytes-based filenames are 32 hex characters (implementation contract). */
     #[Test]
     public function generated_filename_is_32_char_hex(): void
     {
-        $randomHex = bin2hex(random_bytes(16));
-        $this->assertEquals(32, strlen($randomHex));
-        $this->assertMatchesRegularExpression('/^[a-f0-9]{32}$/', $randomHex);
+        $hex = bin2hex(random_bytes(16));
+        $this->assertEquals(32, strlen($hex));
+        $this->assertMatchesRegularExpression('/^[a-f0-9]{32}$/', $hex);
     }
 
-    /** Tests that allowed_extensions config restricts types; txt allowed hits move failure, pdf denied by extension. */
     #[Test]
-    public function allowed_extensions_are_enforced(): void
+    public function move_file_failure_throws(): void
     {
-        $uploader = $this->uploader(['allowed_extensions' => ['txt']]);
-        $tmpFile = $this->createTempFile('hello');
-
-        // txt has no magic bytes check, so it should fail at move_uploaded_file
+        $uploader = $this->uploader();
+        $tmpFile = $this->createTempFile('%PDF-1.4 content');
         try {
-            $uploader->upload([
-                'name'     => 'notes.txt',
-                'tmp_name' => $tmpFile,
-                'error'    => UPLOAD_ERR_OK,
-                'size'     => 5,
-            ]);
+            $uploader->upload(['name' => 'real.pdf', 'tmp_name' => $tmpFile, 'error' => UPLOAD_ERR_OK, 'size' => 16]);
+            $this->fail('Expected RuntimeException');
         } catch (RuntimeException $e) {
             $this->assertStringContainsString('Failed to save', $e->getMessage());
         } finally {
             @unlink($tmpFile);
         }
+    }
 
-        // But .pdf should be rejected
-        $tmpFile2 = $this->createTempFile('hello');
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('File type not allowed');
+    #[Test]
+    public function successful_upload_via_testable_subclass(): void
+    {
+        $uploader = $this->testUploader();
+        $tmpFile = $this->createTempFile('%PDF-1.4 test content here');
 
-        try {
-            $uploader->upload([
-                'name'     => 'test.pdf',
-                'tmp_name' => $tmpFile2,
-                'error'    => UPLOAD_ERR_OK,
-                'size'     => 5,
-            ]);
-        } finally {
-            @unlink($tmpFile2);
-        }
+        $filename = $uploader->upload([
+            'name' => 'cv.pdf', 'tmp_name' => $tmpFile, 'error' => UPLOAD_ERR_OK, 'size' => 25,
+        ]);
+
+        $this->assertNotNull($filename);
+        $this->assertMatchesRegularExpression('/^[a-f0-9]{32}\.pdf$/', $filename);
+        $this->assertFileExists($this->tmpDir . '/' . $filename);
+        @unlink($tmpFile);
+    }
+
+    #[Test]
+    public function creates_directory_if_missing(): void
+    {
+        $subDir = $this->tmpDir . '/subdir';
+        $uploader = $this->testUploader(['directory' => $subDir]);
+        $tmpFile = $this->createTempFile('%PDF-1.4 content');
+
+        $filename = $uploader->upload([
+            'name' => 'cv.pdf', 'tmp_name' => $tmpFile, 'error' => UPLOAD_ERR_OK, 'size' => 15,
+        ]);
+
+        $this->assertDirectoryExists($subDir);
+        $this->assertFileExists($subDir . '/' . $filename);
+        @unlink($tmpFile);
+    }
+
+    #[Test]
+    public function doc_with_correct_magic_bytes_uploads(): void
+    {
+        $uploader = $this->testUploader(['allowed_extensions' => ['doc']]);
+        $tmpFile = $this->createTempFile("\xD0\xCF\x11\xE0" . 'more data here');
+
+        $filename = $uploader->upload([
+            'name' => 'file.doc', 'tmp_name' => $tmpFile, 'error' => UPLOAD_ERR_OK, 'size' => 18,
+        ]);
+
+        $this->assertNotNull($filename);
+        $this->assertStringEndsWith('.doc', $filename);
+        @unlink($tmpFile);
     }
 }

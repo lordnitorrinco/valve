@@ -3,9 +3,11 @@
 
 FROM php:8.3-cli-alpine
 
-# Install the same extensions as the production image
-RUN apk add --no-cache libcurl curl-dev \
-    && docker-php-ext-install pdo pdo_mysql curl
+# Install extensions: pdo_mysql + curl (same as prod) + pcov for coverage
+RUN apk add --no-cache libcurl curl-dev autoconf g++ make linux-headers \
+    && docker-php-ext-install pdo pdo_mysql curl \
+    && pecl install pcov && docker-php-ext-enable pcov \
+    && apk del autoconf g++ make linux-headers
 
 # Install Composer from official image
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
@@ -19,4 +21,4 @@ COPY . .
 RUN composer install --no-interaction --prefer-dist
 
 # Run tests by default
-CMD ["vendor/bin/phpunit", "--colors=always"]
+CMD ["vendor/bin/phpunit", "--colors=always", "--coverage-text"]

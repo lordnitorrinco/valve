@@ -44,7 +44,7 @@ registerView('experience', function renderExperience() {
   renderSitFields();
   fields.appendChild(sitSlot);
 
-  fields.appendChild(fieldInput('techYearsExperience', 'Años de experiencia en el sector Tech', 'Años de experiencia', 'text'));
+  fields.appendChild(fieldInput('techYearsExperience', 'Años de experiencia en el sector Tech', 'Años de experiencia', 'number'));
   fields.appendChild(fieldInput('linkedinUrl', 'Perfil de LinkedIn', 'https://linkedin.com/in/tu-perfil', 'url', null, true));
   fields.appendChild(fieldFile());
   fields.appendChild(fieldSelect('willingToTrain',

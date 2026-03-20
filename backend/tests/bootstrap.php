@@ -4,6 +4,7 @@
  * PHPUnit bootstrap: loads application classes via explicit require_once so unit tests
  * can run without Composer autoloading. Include this file from phpunit.xml before tests.
  */
+require_once __DIR__ . '/../app/Http/HaltException.php';
 require_once __DIR__ . '/../app/Http/Response.php';
 require_once __DIR__ . '/../app/Http/Router.php';
 require_once __DIR__ . '/../app/Http/Security.php';

@@ -8,3 +8,11 @@ uploads/
 node_modules/
 .idea/
 .vscode/
+backend/vendor/
+backend/.phpunit.cache/
+backend/coverage/
+backend/composer.phar
+backend/composer-setup.php
+backend/composer.lock
+frontend/coverage/
+frontend/package-lock.json

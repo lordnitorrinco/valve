@@ -3,18 +3,13 @@
 /**
  * Front controller — single entry point for all API requests.
  *
- * Request lifecycle:
- *  1. Load dependencies and configuration
- *  2. Set CORS headers
- *  3. Handle OPTIONS preflight immediately
- *  4. For POST requests: apply security checks (content-type, origin,
- *     honeypot, CSRF) and rate limiting
- *  5. Log the request
- *  6. Dispatch to the appropriate route handler
- *  7. Catch and handle any exceptions
+ * All Response methods throw HaltException instead of exit().
+ * This outer try/catch captures every halt (OPTIONS, security blocks,
+ * route handlers, validation errors) and outputs the response body.
  */
 
 // ── Dependencies ─────────────────────────────────────────────
+require_once __DIR__ . '/../app/Http/HaltException.php';
 require_once __DIR__ . '/../app/Http/Response.php';
 require_once __DIR__ . '/../app/Http/Router.php';
 require_once __DIR__ . '/../app/Http/Security.php';
@@ -34,84 +29,81 @@ $config = require __DIR__ . '/../config/app.php';
 // ── CORS (applied to every response, including errors) ──────
 Response::cors($config['security']['allowed_origin']);
 
-// ── OPTIONS preflight — respond immediately ─────────────────
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    Response::noContent();
-}
-
-// ── POST-only security checks ───────────────────────────────
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    Security::checkContentType();
-    Security::checkOrigin($config['security']['allowed_origin']);
-    Security::checkHoneypot();
-    Security::validateCsrf(
-        $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '',
-        $config['security']['csrf_secret']
-    );
-}
-
-// ── Database connection ─────────────────────────────────────
-$db = Database::connect($config['db']);
-
-// ── Application-level rate limiting (POST only) ─────────────
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $rateLimiter = new RateLimiter(
-        $db,
-        $config['security']['rate_limit_max'],
-        $config['security']['rate_limit_window']
-    );
-    $rateLimiter->check($_SERVER['REMOTE_ADDR']);
-}
-
-// ── Request logging ─────────────────────────────────────────
-SecurityLogger::log('request', [
-    'method' => $_SERVER['REQUEST_METHOD'],
-    'uri'    => $_SERVER['REQUEST_URI'],
-]);
-
-// ── Routes ──────────────────────────────────────────────────
-$router = new Router();
-
-// GET /api/csrf-token — Generate a fresh CSRF token for the frontend
-$router->get('/api/csrf-token', function () use ($config) {
-    $token = Security::generateCsrf($config['security']['csrf_secret']);
-    Response::success(['token' => $token]);
-});
-
-// GET /api/submissions — List all submissions (admin panel)
-$router->get('/api/submissions', function () use ($config, $db) {
-    $encryptor  = new Encryptor($config['security']['encryption_key']);
-    $uploader   = new FileUploader($config['uploads']);
-    $controller = new SubmissionController($db, $uploader, $encryptor, $config['webhook']);
-    $controller->list();
-});
-
-// GET /api/submissions/{id}/cv — Download a CV file
-$router->get('/api/submissions/{id}/cv', function (array $params) use ($config, $db) {
-    $encryptor  = new Encryptor($config['security']['encryption_key']);
-    $uploader   = new FileUploader($config['uploads']);
-    $controller = new SubmissionController($db, $uploader, $encryptor, $config['webhook']);
-    $controller->downloadCv((int) $params['id']);
-});
-
-// POST /api/submit — Process a new admission form submission
-$router->post('/api/submit', function () use ($config, $db) {
-    $uploader   = new FileUploader($config['uploads']);
-    $encryptor  = new Encryptor($config['security']['encryption_key']);
-    $controller = new SubmissionController($db, $uploader, $encryptor, $config['webhook']);
-    $controller->store();
-});
-
-// ── Dispatch with error handling ────────────────────────────
 try {
+    // ── OPTIONS preflight — respond immediately ─────────────
+    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+        Response::noContent();
+    }
+
+    // ── POST-only security checks ───────────────────────────
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        Security::checkContentType();
+        Security::checkOrigin($config['security']['allowed_origin']);
+        Security::checkHoneypot();
+        Security::validateCsrf(
+            $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '',
+            $config['security']['csrf_secret']
+        );
+    }
+
+    // ── Database connection ─────────────────────────────────
+    $db = Database::connect($config['db']);
+
+    // ── Application-level rate limiting (POST only) ─────────
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $rateLimiter = new RateLimiter(
+            $db,
+            $config['security']['rate_limit_max'],
+            $config['security']['rate_limit_window']
+        );
+        $rateLimiter->check($_SERVER['REMOTE_ADDR']);
+    }
+
+    // ── Request logging ─────────────────────────────────────
+    SecurityLogger::log('request', [
+        'method' => $_SERVER['REQUEST_METHOD'],
+        'uri'    => $_SERVER['REQUEST_URI'],
+    ]);
+
+    // ── Routes ──────────────────────────────────────────────
+    $router = new Router();
+
+    $router->get('/api/csrf-token', function () use ($config) {
+        $token = Security::generateCsrf($config['security']['csrf_secret']);
+        Response::success(['token' => $token]);
+    });
+
+    $router->get('/api/submissions', function () use ($config, $db) {
+        $encryptor  = new Encryptor($config['security']['encryption_key']);
+        $uploader   = new FileUploader($config['uploads']);
+        $controller = new SubmissionController($db, $uploader, $encryptor, $config['webhook']);
+        $controller->list();
+    });
+
+    $router->get('/api/submissions/{id}/cv', function (array $params) use ($config, $db) {
+        $encryptor  = new Encryptor($config['security']['encryption_key']);
+        $uploader   = new FileUploader($config['uploads']);
+        $controller = new SubmissionController($db, $uploader, $encryptor, $config['webhook']);
+        $controller->downloadCv((int) $params['id']);
+    });
+
+    $router->post('/api/submit', function () use ($config, $db) {
+        $uploader   = new FileUploader($config['uploads']);
+        $encryptor  = new Encryptor($config['security']['encryption_key']);
+        $controller = new SubmissionController($db, $uploader, $encryptor, $config['webhook']);
+        $controller->store();
+    });
+
     $router->dispatch();
+
+} catch (HaltException $e) {
+    echo $e->body;
 } catch (PDOException $e) {
     SecurityLogger::log('db_error', ['message' => $e->getMessage()]);
-    Response::error('Database error', 500);
-} catch (RuntimeException $e) {
-    SecurityLogger::log('runtime_error', ['message' => $e->getMessage()]);
-    Response::error($e->getMessage(), 400);
+    http_response_code(500);
+    echo json_encode(['error' => 'Database error']);
 } catch (Throwable $e) {
     SecurityLogger::log('server_error', ['message' => $e->getMessage()]);
-    Response::error('Internal server error', 500);
+    http_response_code(500);
+    echo json_encode(['error' => 'Internal server error']);
 }

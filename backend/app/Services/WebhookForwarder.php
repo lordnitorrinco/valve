@@ -36,19 +36,31 @@ class WebhookForwarder
             CURLOPT_SSL_VERIFYPEER => true,
         ]);
 
-        $result   = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $error    = curl_error($ch);
+        $response = static::executeCurl($ch);
         curl_close($ch);
 
-        if ($httpCode < 200 || $httpCode >= 300) {
+        if ($response['code'] < 200 || $response['code'] >= 300) {
             SecurityLogger::log('webhook_failed', [
                 'url'       => $url,
-                'http_code' => $httpCode,
-                'error'     => $error ?: substr($result, 0, 200),
+                'http_code' => $response['code'],
+                'error'     => $response['error'] ?: substr($response['body'], 0, 200),
             ]);
         } else {
             SecurityLogger::log('webhook_success', ['url' => $url]);
         }
+    }
+
+    /**
+     * Execute a cURL handle. Extracted for testability —
+     * subclasses can override to simulate HTTP responses.
+     *
+     * @return array{body: string, code: int, error: string}
+     */
+    protected static function executeCurl(\CurlHandle $ch): array
+    {
+        $body  = curl_exec($ch);
+        $code  = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
+        return ['body' => $body ?: '', 'code' => $code, 'error' => $error];
     }
 }

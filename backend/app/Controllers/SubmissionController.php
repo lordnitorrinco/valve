@@ -89,7 +89,7 @@ class SubmissionController
         header('Content-Disposition: attachment; filename="cv_' . $id . '.' . $ext . '"');
         header('Content-Length: ' . filesize($filePath));
         readfile($filePath);
-        exit;
+        throw new HaltException(200);
     }
 
     /**
@@ -211,7 +211,7 @@ class SubmissionController
             ':english_level'         => $data['englishLevel'],
             ':situation'             => $data['situation'],
             ':job_role'              => $data['jobRole'] ?: null,
-            ':tech_years_experience' => $data['techYearsExperience'] ?: null,
+            ':tech_years_experience' => $data['techYearsExperience'] !== '' ? (int) $data['techYearsExperience'] : null,
             ':linkedin_url'          => $data['linkedinUrl'] ?: null,
             ':willing_to_train'      => $data['willingToTrain'],
             ':cv_filename'           => $cvFilename,

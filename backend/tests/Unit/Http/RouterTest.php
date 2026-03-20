@@ -78,4 +78,157 @@ class RouterTest extends TestCase
 
         $this->assertArrayHasKey('/api/submissions/{id}/cv', $routes['GET']);
     }
+
+    // ── dispatch() ──────────────────────────────────────────────────
+
+    #[Test]
+    public function dispatch_calls_matching_get_handler(): void
+    {
+        $_SERVER['REQUEST_METHOD'] = 'GET';
+        $_SERVER['REQUEST_URI'] = '/test';
+
+        $router = new Router();
+        $called = false;
+        $router->get('/test', function () use (&$called) {
+            $called = true;
+        });
+
+        $router->dispatch();
+        $this->assertTrue($called);
+    }
+
+    #[Test]
+    public function dispatch_calls_matching_post_handler(): void
+    {
+        $_SERVER['REQUEST_METHOD'] = 'POST';
+        $_SERVER['REQUEST_URI'] = '/api/submit';
+
+        $router = new Router();
+        $called = false;
+        $router->post('/api/submit', function () use (&$called) {
+            $called = true;
+        });
+
+        $router->dispatch();
+        $this->assertTrue($called);
+    }
+
+    #[Test]
+    public function dispatch_returns_404_for_unknown_route(): void
+    {
+        $_SERVER['REQUEST_METHOD'] = 'GET';
+        $_SERVER['REQUEST_URI'] = '/nonexistent';
+
+        $router = new Router();
+        $router->get('/test', function () {});
+
+        try {
+            $router->dispatch();
+            $this->fail('HaltException was not thrown');
+        } catch (HaltException $e) {
+            $this->assertSame(404, $e->statusCode);
+            $decoded = json_decode($e->body, true);
+            $this->assertSame('Not found', $decoded['error']);
+        }
+    }
+
+    #[Test]
+    public function dispatch_returns_405_for_unsupported_method(): void
+    {
+        $_SERVER['REQUEST_METHOD'] = 'PUT';
+        $_SERVER['REQUEST_URI'] = '/test';
+
+        $router = new Router();
+        $router->get('/test', function () {});
+
+        try {
+            $router->dispatch();
+            $this->fail('HaltException was not thrown');
+        } catch (HaltException $e) {
+            $this->assertSame(405, $e->statusCode);
+            $decoded = json_decode($e->body, true);
+            $this->assertSame('Method not allowed', $decoded['error']);
+        }
+    }
+
+    #[Test]
+    public function dispatch_returns_405_for_delete_method(): void
+    {
+        $_SERVER['REQUEST_METHOD'] = 'DELETE';
+        $_SERVER['REQUEST_URI'] = '/test';
+
+        $router = new Router();
+
+        try {
+            $router->dispatch();
+            $this->fail('HaltException was not thrown');
+        } catch (HaltException $e) {
+            $this->assertSame(405, $e->statusCode);
+        }
+    }
+
+    #[Test]
+    public function dispatch_matches_parameterized_route(): void
+    {
+        $_SERVER['REQUEST_METHOD'] = 'GET';
+        $_SERVER['REQUEST_URI'] = '/api/submissions/42/cv';
+
+        $router = new Router();
+        $capturedParams = null;
+        $router->get('/api/submissions/{id}/cv', function (array $params) use (&$capturedParams) {
+            $capturedParams = $params;
+        });
+
+        $router->dispatch();
+        $this->assertSame('42', $capturedParams['id']);
+    }
+
+    #[Test]
+    public function dispatch_strips_query_string_from_uri(): void
+    {
+        $_SERVER['REQUEST_METHOD'] = 'GET';
+        $_SERVER['REQUEST_URI'] = '/test?foo=bar&baz=1';
+
+        $router = new Router();
+        $called = false;
+        $router->get('/test', function () use (&$called) {
+            $called = true;
+        });
+
+        $router->dispatch();
+        $this->assertTrue($called);
+    }
+
+    #[Test]
+    public function dispatch_allows_options_but_returns_404_without_handler(): void
+    {
+        $_SERVER['REQUEST_METHOD'] = 'OPTIONS';
+        $_SERVER['REQUEST_URI'] = '/api/submit';
+
+        $router = new Router();
+        $router->post('/api/submit', function () {});
+
+        try {
+            $router->dispatch();
+            $this->fail('HaltException was not thrown');
+        } catch (HaltException $e) {
+            $this->assertSame(404, $e->statusCode);
+        }
+    }
+
+    #[Test]
+    public function dispatch_returns_404_when_no_routes_registered(): void
+    {
+        $_SERVER['REQUEST_METHOD'] = 'GET';
+        $_SERVER['REQUEST_URI'] = '/anything';
+
+        $router = new Router();
+
+        try {
+            $router->dispatch();
+            $this->fail('HaltException was not thrown');
+        } catch (HaltException $e) {
+            $this->assertSame(404, $e->statusCode);
+        }
+    }
 }

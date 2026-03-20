@@ -4,9 +4,24 @@ use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\Test;
 
 /**
- * Unit tests for WebhookForwarder.
- * Covers empty URL no-op, unreachable endpoint logging, payload shape, and JSON serialization of form data.
+ * Testable subclass that simulates HTTP responses without network I/O.
  */
+class FakeWebhookForwarder extends WebhookForwarder
+{
+    public static int $fakeCode = 200;
+    public static string $fakeBody = '{"ok":true}';
+    public static string $fakeError = '';
+
+    protected static function executeCurl(\CurlHandle $ch): array
+    {
+        return [
+            'body'  => static::$fakeBody,
+            'code'  => static::$fakeCode,
+            'error' => static::$fakeError,
+        ];
+    }
+}
+
 class WebhookForwarderTest extends TestCase
 {
     private string $logFile;
@@ -17,6 +32,9 @@ class WebhookForwarderTest extends TestCase
         ini_set('error_log', $this->logFile);
         $_SERVER['REMOTE_ADDR'] = '127.0.0.1';
         $_SERVER['HTTP_USER_AGENT'] = 'PHPUnit';
+        FakeWebhookForwarder::$fakeCode  = 200;
+        FakeWebhookForwarder::$fakeBody  = '{"ok":true}';
+        FakeWebhookForwarder::$fakeError = '';
     }
 
     protected function tearDown(): void
@@ -25,59 +43,82 @@ class WebhookForwarderTest extends TestCase
         @unlink($this->logFile);
     }
 
-    /** Tests that forwarding with an empty URL produces no error_log output. */
     #[Test]
     public function forward_with_empty_url_does_nothing(): void
     {
         WebhookForwarder::forward(['test' => 'data'], '');
-
         $content = file_get_contents($this->logFile);
-        $this->assertEmpty(trim($content), 'No log should be generated for empty URL');
+        $this->assertEmpty(trim($content));
     }
 
-    /** Tests that an unreachable webhook URL logs a failure event. */
     #[Test]
     public function forward_logs_failure_for_unreachable_url(): void
     {
-        $data = [
-            'firstName' => 'Test',
-            'email'     => 'test@example.com',
-        ];
+        WebhookForwarder::forward(['a' => 'b'], 'http://192.0.2.1:1/nonexistent');
+        $content = file_get_contents($this->logFile);
+        $this->assertStringContainsString('webhook_failed', $content);
+    }
 
-        WebhookForwarder::forward($data, 'http://192.0.2.1:1/nonexistent');
+    #[Test]
+    public function forward_success_logs_webhook_success(): void
+    {
+        FakeWebhookForwarder::forward(
+            ['firstName' => 'Test', 'email' => 'test@example.com'],
+            'https://fake.endpoint/webhook'
+        );
+
+        $content = file_get_contents($this->logFile);
+        $this->assertStringContainsString('webhook_success', $content);
+    }
+
+    #[Test]
+    public function forward_failure_logs_webhook_failed(): void
+    {
+        FakeWebhookForwarder::$fakeCode = 500;
+        FakeWebhookForwarder::$fakeBody = 'Internal Server Error';
+
+        FakeWebhookForwarder::forward(
+            ['firstName' => 'Test'],
+            'https://fake.endpoint/webhook'
+        );
 
         $content = file_get_contents($this->logFile);
         $this->assertStringContainsString('webhook_failed', $content);
     }
 
-    /** Tests that sample payload data does not include honeypot or CSRF keys (contract for forward input). */
+    #[Test]
+    public function forward_failure_with_curl_error(): void
+    {
+        FakeWebhookForwarder::$fakeCode  = 0;
+        FakeWebhookForwarder::$fakeError = 'Connection timed out';
+        FakeWebhookForwarder::$fakeBody  = '';
+
+        FakeWebhookForwarder::forward(
+            ['firstName' => 'Test'],
+            'https://fake.endpoint/webhook'
+        );
+
+        $content = file_get_contents($this->logFile);
+        $this->assertStringContainsString('webhook_failed', $content);
+    }
+
     #[Test]
     public function forward_does_not_include_security_fields(): void
     {
-        $data = [
-            'firstName' => 'Test',
-            'email'     => 'test@example.com',
-        ];
-
+        $data = ['firstName' => 'Test', 'email' => 'test@example.com'];
         $this->assertArrayNotHasKey('website', $data);
         $this->assertArrayNotHasKey('csrfToken', $data);
-        $this->assertArrayNotHasKey('X-CSRF-Token', $data);
     }
 
-    /** Tests that representative form fields encode to JSON with expected keys and values. */
     #[Test]
     public function forward_sends_all_form_data(): void
     {
         $data = [
-            'firstName' => 'Pablo',
-            'lastName'  => 'García',
-            'email'     => 'pablo@test.com',
-            'phone'     => '600123456',
+            'firstName' => 'Pablo', 'lastName' => 'García',
+            'email' => 'pablo@test.com', 'phone' => '600123456',
         ];
-
         $json = json_encode($data);
         $this->assertStringContainsString('Pablo', $json);
-        $this->assertStringContainsString('pablo@test.com', $json);
         $this->assertCount(4, $data);
     }
 }

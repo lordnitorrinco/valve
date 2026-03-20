@@ -29,27 +29,46 @@ class Database
             return self::$instance;
         }
 
-        $dsn = sprintf(
+        $dsn = $config['dsn'] ?? sprintf(
             'mysql:host=%s;dbname=%s;charset=%s',
             $config['host'],
             $config['name'],
             $config['charset']
         );
 
+        $lastException = null;
         for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
             try {
-                self::$instance = new PDO($dsn, $config['user'], $config['password'], [
-                    PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                    PDO::ATTR_EMULATE_PREPARES   => false, // Use real prepared statements
-                ]);
+                self::$instance = static::createPdo($dsn, $config['user'], $config['password']);
                 return self::$instance;
             } catch (PDOException $e) {
-                if ($attempt === $maxRetries) throw $e;
-                sleep(2); // Wait before retrying
+                $lastException = $e;
+                if ($attempt < $maxRetries) {
+                    static::retrySleep();
+                }
             }
         }
 
-        throw new RuntimeException('Could not connect to database');
+        throw $lastException ?? new RuntimeException('Could not connect to database');
+    }
+
+    /**
+     * Wait between retry attempts. Extracted for testability.
+     */
+    protected static function retrySleep(): void
+    {
+        sleep(2);
+    }
+
+    /**
+     * Instantiate a PDO connection. Extracted for testability via subclass override.
+     */
+    protected static function createPdo(string $dsn, string $user, string $password): PDO
+    {
+        return new PDO($dsn, $user, $password, [
+            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES   => false,
+        ]);
     }
 }

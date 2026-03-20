@@ -139,4 +139,227 @@ class SecurityTest extends TestCase
         $decoded = base64_decode($token, true);
         $this->assertFalse(str_contains($decoded, '.'));
     }
+
+    // ── validateCsrf() — full integration via HaltException ─────────
+
+    #[Test]
+    public function validateCsrf_accepts_valid_token(): void
+    {
+        $token = Security::generateCsrf(self::SECRET);
+        Security::validateCsrf($token, self::SECRET);
+        $this->assertTrue(true);
+    }
+
+    #[Test]
+    public function validateCsrf_rejects_expired_token(): void
+    {
+        $oldTime = time() - 1000;
+        $hmac  = hash_hmac('sha256', (string) $oldTime, self::SECRET);
+        $token = base64_encode($oldTime . '.' . $hmac);
+
+        try {
+            Security::validateCsrf($token, self::SECRET);
+            $this->fail('HaltException was not thrown');
+        } catch (HaltException $e) {
+            $this->assertSame(403, $e->statusCode);
+            $decoded = json_decode($e->body, true);
+            $this->assertSame('CSRF token expired', $decoded['error']);
+        }
+    }
+
+    #[Test]
+    public function validateCsrf_rejects_tampered_hmac(): void
+    {
+        $token = base64_encode(time() . '.fakehmacinvalid');
+
+        try {
+            Security::validateCsrf($token, self::SECRET);
+            $this->fail('HaltException was not thrown');
+        } catch (HaltException $e) {
+            $this->assertSame(403, $e->statusCode);
+        }
+    }
+
+    #[Test]
+    public function validateCsrf_rejects_invalid_base64(): void
+    {
+        try {
+            Security::validateCsrf('!!!invalid!!!', self::SECRET);
+            $this->fail('HaltException was not thrown');
+        } catch (HaltException $e) {
+            $this->assertSame(403, $e->statusCode);
+        }
+    }
+
+    #[Test]
+    public function validateCsrf_rejects_missing_dot_separator(): void
+    {
+        $token = base64_encode('nodothere');
+
+        try {
+            Security::validateCsrf($token, self::SECRET);
+            $this->fail('HaltException was not thrown');
+        } catch (HaltException $e) {
+            $this->assertSame(403, $e->statusCode);
+        }
+    }
+
+    #[Test]
+    public function validateCsrf_respects_custom_max_age(): void
+    {
+        $oldTime = time() - 10;
+        $hmac  = hash_hmac('sha256', (string) $oldTime, self::SECRET);
+        $token = base64_encode($oldTime . '.' . $hmac);
+
+        try {
+            Security::validateCsrf($token, self::SECRET, 5);
+            $this->fail('HaltException was not thrown');
+        } catch (HaltException $e) {
+            $this->assertSame(403, $e->statusCode);
+        }
+    }
+
+    // ── checkContentType() ──────────────────────────────────────────
+
+    #[Test]
+    public function checkContentType_passes_with_multipart_form_data(): void
+    {
+        $_SERVER['CONTENT_TYPE'] = 'multipart/form-data; boundary=----WebKitFormBoundary';
+        Security::checkContentType();
+        $this->assertTrue(true);
+    }
+
+    #[Test]
+    public function checkContentType_rejects_json(): void
+    {
+        $_SERVER['CONTENT_TYPE'] = 'application/json';
+
+        try {
+            Security::checkContentType();
+            $this->fail('HaltException was not thrown');
+        } catch (HaltException $e) {
+            $this->assertSame(415, $e->statusCode);
+            $decoded = json_decode($e->body, true);
+            $this->assertSame('Invalid content type', $decoded['error']);
+        }
+    }
+
+    #[Test]
+    public function checkContentType_rejects_missing_header(): void
+    {
+        unset($_SERVER['CONTENT_TYPE']);
+
+        try {
+            Security::checkContentType();
+            $this->fail('HaltException was not thrown');
+        } catch (HaltException $e) {
+            $this->assertSame(415, $e->statusCode);
+        }
+    }
+
+    #[Test]
+    public function checkContentType_rejects_plain_text(): void
+    {
+        $_SERVER['CONTENT_TYPE'] = 'text/plain';
+
+        try {
+            Security::checkContentType();
+            $this->fail('HaltException was not thrown');
+        } catch (HaltException $e) {
+            $this->assertSame(415, $e->statusCode);
+        }
+    }
+
+    // ── checkOrigin() ───────────────────────────────────────────────
+
+    #[Test]
+    public function checkOrigin_passes_with_matching_origin(): void
+    {
+        $_SERVER['HTTP_ORIGIN'] = 'http://localhost:8080';
+        unset($_SERVER['HTTP_REFERER']);
+
+        Security::checkOrigin('http://localhost:8080');
+        $this->assertTrue(true);
+    }
+
+    #[Test]
+    public function checkOrigin_rejects_mismatched_origin(): void
+    {
+        $_SERVER['HTTP_ORIGIN'] = 'http://evil.com';
+
+        try {
+            Security::checkOrigin('http://localhost:8080');
+            $this->fail('HaltException was not thrown');
+        } catch (HaltException $e) {
+            $this->assertSame(403, $e->statusCode);
+        }
+    }
+
+    #[Test]
+    public function checkOrigin_passes_with_matching_referer_when_no_origin(): void
+    {
+        unset($_SERVER['HTTP_ORIGIN']);
+        $_SERVER['HTTP_REFERER'] = 'http://localhost:8080/form';
+
+        Security::checkOrigin('http://localhost:8080');
+        $this->assertTrue(true);
+    }
+
+    #[Test]
+    public function checkOrigin_rejects_mismatched_referer_when_no_origin(): void
+    {
+        $_SERVER['HTTP_ORIGIN'] = '';
+        $_SERVER['HTTP_REFERER'] = 'http://evil.com/form';
+
+        try {
+            Security::checkOrigin('http://localhost:8080');
+            $this->fail('HaltException was not thrown');
+        } catch (HaltException $e) {
+            $this->assertSame(403, $e->statusCode);
+        }
+    }
+
+    #[Test]
+    public function checkOrigin_passes_when_neither_origin_nor_referer(): void
+    {
+        unset($_SERVER['HTTP_ORIGIN']);
+        unset($_SERVER['HTTP_REFERER']);
+
+        Security::checkOrigin('http://localhost:8080');
+        $this->assertTrue(true);
+    }
+
+    // ── checkHoneypot() ─────────────────────────────────────────────
+
+    #[Test]
+    public function checkHoneypot_passes_when_field_is_empty(): void
+    {
+        $_POST['website'] = '';
+        Security::checkHoneypot();
+        $this->assertTrue(true);
+    }
+
+    #[Test]
+    public function checkHoneypot_passes_when_field_is_missing(): void
+    {
+        unset($_POST['website']);
+        Security::checkHoneypot();
+        $this->assertTrue(true);
+    }
+
+    #[Test]
+    public function checkHoneypot_catches_bot_with_filled_field(): void
+    {
+        $_POST['website'] = 'http://spam.com';
+
+        try {
+            Security::checkHoneypot();
+            $this->fail('HaltException was not thrown');
+        } catch (HaltException $e) {
+            $this->assertSame(200, $e->statusCode);
+            $decoded = json_decode($e->body, true);
+            $this->assertSame(0, $decoded['id']);
+            $this->assertSame('Solicitud recibida correctamente', $decoded['message']);
+        }
+    }
 }
