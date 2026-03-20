@@ -79,6 +79,14 @@ open http://localhost:8080
 |--------|-----|-------------|
 | `GET`  | `/api/csrf-token` | Genera un token CSRF |
 | `POST` | `/api/submit` | Envía una solicitud de admisión |
+| `GET`  | `/api/submissions` | Lista todas las solicitudes (PII descifrada) |
+| `GET`  | `/api/submissions/{id}/cv` | Descarga el CV de una solicitud |
+
+## Panel de administración
+
+Accesible en [`http://localhost:8080/admin`](http://localhost:8080/admin).
+
+Muestra un listado de todas las solicitudes. Al hacer click en una fila se abre un popup con todos los datos del candidato y un botón para descargar su CV.
 
 ## Tests
 
@@ -93,9 +101,9 @@ bash run-tests.sh
 
 | Capa | Framework | Tests | Qué cubre |
 |------|-----------|-------|-----------|
-| Backend | PHPUnit 11 | 70 | Validator, SubmissionValidator, Encryptor, Security (CSRF), Router, FileUploader, SecurityLogger, WebhookForwarder, Database |
+| Backend | PHPUnit 11 | 71 | Validator, SubmissionValidator, Encryptor, Security (CSRF), Router, FileUploader, SecurityLogger, WebhookForwarder, Database |
 | Frontend | Vitest 3 | 59 | Store, validaciones (4 funciones), createElement, showErrors, options/data |
-| Integración | Shell/curl | 27 | Frontend serving, security headers, CSRF flow, API validation, honeypot, HTTP methods, route protection, CORS, phpMyAdmin |
+| Integración | Shell/curl | 32 | Frontend, security headers, CSRF, API validation, honeypot, HTTP methods, route protection, CORS, admin API, phpMyAdmin |
 
 ### Ejecutar por separado
 

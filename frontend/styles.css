@@ -514,7 +514,7 @@ select.modern-input {
 /* ── Admin panel ──────────────────────────────────────────── */
 
 .admin-page {
-    max-width: 1200px;
+    max-width: 800px;
     margin: 0 auto;
     padding: 2rem 1.5rem;
 }
@@ -566,12 +566,12 @@ select.modern-input {
     font-weight: 600;
 }
 
-.admin-table-wrap {
+.admin-list-wrap {
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     box-shadow: var(--shadow-card);
-    overflow-x: auto;
+    overflow: hidden;
 }
 
 .admin-loading {
@@ -611,7 +611,8 @@ select.modern-input {
 .admin-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
+    table-layout: fixed;
 }
 
 .admin-table th {
@@ -623,17 +624,24 @@ select.modern-input {
     color: var(--muted-foreground);
     font-weight: 600;
     border-bottom: 2px solid var(--border);
-    white-space: nowrap;
     background: var(--muted);
-    position: sticky;
-    top: 0;
 }
+
+.admin-table th:first-child { width: 3.5rem; }
+.admin-table th:last-child { width: 10rem; }
 
 .admin-table td {
     padding: 0.625rem 1rem;
     border-bottom: 1px solid var(--border);
     vertical-align: middle;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.admin-table tbody tr {
+    cursor: pointer;
+    transition: background 0.12s;
 }
 
 .admin-table tbody tr:hover {
@@ -644,48 +652,140 @@ select.modern-input {
     border-bottom: none;
 }
 
-.email-cell {
-    max-width: 200px;
-    overflow: hidden;
-    text-overflow: ellipsis;
+.name-cell { font-weight: 500; }
+
+.date-cell {
+    color: var(--muted-foreground);
+    font-size: 0.75rem;
 }
 
-.admin-cv-btn {
-    display: inline-flex;
+/* ── Detail modal ────────────────────────────────────────── */
+
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: hsl(0 0% 0% / .45);
+    display: flex;
     align-items: center;
     justify-content: center;
-    width: 2rem;
-    height: 2rem;
-    border-radius: 0.5rem;
-    color: var(--foreground);
-    background: var(--muted);
-    border: 1px solid var(--border);
+    padding: 1.5rem;
+    animation: fadeIn 0.15s ease;
+}
+
+.modal {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: 0 16px 48px hsl(0 0% 0% / .2);
+    width: 100%;
+    max-width: 520px;
+    max-height: 85vh;
+    overflow-y: auto;
+    padding: 2rem;
+    position: relative;
+    animation: modalIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+@keyframes modalIn {
+    from { opacity: 0; transform: translateY(12px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.modal-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: none;
+    border: none;
     cursor: pointer;
-    transition: background 0.15s, border-color 0.15s;
+    color: var(--muted-foreground);
+    padding: 0.25rem;
+    line-height: 0;
+    transition: color 0.12s;
+}
+
+.modal-close:hover { color: var(--foreground); }
+.modal-close svg { width: 20px; height: 20px; }
+
+.modal-header {
+    margin-bottom: 1.5rem;
+    padding-right: 2rem;
+}
+
+.modal-header h2 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    line-height: 1.3;
+    margin-bottom: 0.25rem;
+}
+
+.modal-date {
+    font-size: 0.75rem;
+    color: var(--muted-foreground);
+}
+
+.modal-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.875rem 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.modal-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    min-width: 0;
+}
+
+.modal-label {
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted-foreground);
+    font-weight: 600;
+}
+
+.modal-value {
+    font-size: 0.875rem;
+    color: var(--foreground);
+    word-break: break-word;
+}
+
+.modal-field a {
+    font-size: 0.875rem;
+    color: hsl(220 70% 50%);
     text-decoration: none;
+    word-break: break-all;
 }
 
-.admin-cv-btn:hover {
-    background: var(--border);
-    border-color: var(--muted-foreground);
+.modal-field a:hover { text-decoration: underline; }
+
+.modal-cv-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    background: var(--gradient-primary);
+    color: white;
+    border-radius: 0.625rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: opacity 0.15s;
+    box-shadow: var(--shadow-button);
 }
 
-.admin-cv-btn svg {
-    width: 14px;
-    height: 14px;
-}
+.modal-cv-btn:hover { opacity: 0.85; }
+.modal-cv-btn svg { width: 16px; height: 16px; }
 
-@media (max-width: 768px) {
-    .admin-page {
-        padding: 1rem;
-    }
-
-    .admin-table {
-        font-size: 0.75rem;
-    }
-
-    .admin-table th,
-    .admin-table td {
-        padding: 0.5rem 0.625rem;
-    }
+@media (max-width: 640px) {
+    .admin-page { padding: 1rem; }
+    .modal { padding: 1.5rem; }
+    .modal-grid { grid-template-columns: 1fr; }
 }
