@@ -1,0 +1,213 @@
+# Documentación Técnica
+
+## Estructura del proyecto
+
+```
+sandbox/
+├── docker-compose.yml         # Orquestación de los 4 contenedores
+├── .env                       # Variables de entorno (no en git)
+├── .env.example               # Plantilla de variables
+├── .gitignore
+├── ARCHITECTURE.md            # Opciones de arquitectura evaluadas
+├── SECURITY.md                # 44 medidas de seguridad documentadas
+│
+├── frontend/                  # ── Aplicación web (vanilla JS) ──
+│   ├── Dockerfile
+│   ├── nginx.conf             # Config Nginx del contenedor frontend
+│   ├── index.html
+│   ├── styles.css
+│   ├── src/
+│   │   ├── app.js             # Entry point: registra pasos e inicializa
+│   │   ├── framework/         # Infraestructura interna (no toca lógica de negocio)
+│   │   │   ├── createElement.js   # el(), showErrors(), clearFieldError()
+│   │   │   ├── router.js          # Navegación SPA, transiciones exit/enter
+│   │   │   └── store.js           # Estado global (formData, errors, cvFile)
+│   │   ├── ui/                # Componentes visuales reutilizables
+│   │   │   ├── fields.js          # Input, select, phone, file, date
+│   │   │   ├── icons.js           # Definiciones SVG
+│   │   │   └── progress-bar.js    # Barra de progreso persistente
+│   │   ├── steps/             # Cada paso del formulario (en orden)
+│   │   │   ├── 0-intro.js
+│   │   │   ├── 1-contact.js
+│   │   │   ├── 2-location.js
+│   │   │   ├── 3-education.js
+│   │   │   ├── 4-experience.js
+│   │   │   ├── 5-consent.js
+│   │   │   └── results.js        # success, rejected, killer
+│   │   ├── services/          # Comunicación con el exterior
+│   │   │   ├── api.js             # submitForm() → POST /api/submit
+│   │   │   └── validation.js      # Reglas de validación por paso
+│   │   └── data/              # Datos estáticos y configuración
+│   │       ├── options.js         # Países, niveles, constantes
+│   │       └── partners.js        # Logos de empresas asociadas
+│   └── assets/
+│       ├── logo-evolve.svg
+│       └── partners/
+│
+├── backend/                   # ── API REST (PHP 8.3) ──
+│   ├── Dockerfile
+│   ├── public/
+│   │   └── index.php              # Front controller
+│   ├── config/
+│   │   └── app.php                # Config desde variables de entorno
+│   └── app/
+│       ├── Controllers/
+│       │   └── SubmissionController.php
+│       ├── Services/
+│       │   ├── Database.php           # Conexión PDO singleton con retry
+│       │   ├── Encryptor.php          # AES-256-CBC para cifrado de PII
+│       │   ├── FileUploader.php       # Subida de CV con magic bytes check
+│       │   ├── RateLimiter.php        # Rate limiting por IP en MySQL
+│       │   ├── SecurityLogger.php     # Logging estructurado de eventos
+│       │   └── WebhookForwarder.php   # Reenvío al endpoint externo
+│       ├── Validation/
+│       │   ├── Validator.php          # Motor genérico (required, email, maxLength, pattern, url)
+│       │   └── SubmissionValidator.php # Reglas específicas con validación estricta
+│       └── Http/
+│           ├── Response.php       # JSON responses + CORS restrictivo
+│           ├── Router.php         # Registro y dispatch de rutas (GET + POST)
+│           └── Security.php       # CSRF, Origin, Content-Type, Honeypot
+│
+├── nginx/                     # ── Reverse proxy (gateway) ──
+│   ├── Dockerfile
+│   └── default.conf
+│
+└── mysql/
+    └── init.sql
+```
+
+## Frontend — Cómo funciona
+
+### Arquitectura: Framework + Steps
+
+El frontend usa **ES Modules nativos** sin bundler. La estructura se divide en 5 capas con responsabilidades claras:
+
+```
+data/         →  Datos puros (constantes, listas de opciones)
+framework/    →  Infraestructura (DOM, routing, estado)
+ui/           →  Componentes visuales reutilizables
+services/     →  Lógica de negocio (validación, HTTP)
+steps/        →  Pantallas del formulario (en orden numérico)
+```
+
+### Flujo de dependencias
+
+```
+data/options, data/partners    ← módulos hoja (sin dependencias)
+        ↓
+  framework/store              ← estado global
+  framework/createElement      ← depende de store
+  framework/router             ← depende de store, createElement, ui/progress-bar
+        ↓
+  ui/icons                     ← sin dependencias
+  ui/fields                    ← depende de store, createElement, icons, router
+  ui/progress-bar              ← depende de createElement, data/options
+        ↓
+  services/validation          ← depende de store, data/options
+  services/api                 ← depende de store, data/options, router
+        ↓
+  steps/0-intro ... 5-consent  ← dependen de framework, ui, services, data
+  steps/results                ← depende de framework, ui
+        ↓
+  app.js                       ← importa router + todos los steps
+```
+
+### Patrón Registry (sin dependencias circulares)
+
+Cada step se auto-registra al importarse:
+
+```js
+// steps/1-contact.js
+import { registerView, goTo } from '../framework/router.js';
+
+registerView('personal', function renderContact() {
+  // ... construye el DOM y retorna el elemento
+});
+```
+
+El router no importa los steps → no hay ciclos.
+
+### Transiciones SPA
+
+El router implementa transiciones `exit → enter` con `opacity` + `translateX`, replicando el comportamiento de `framer-motion` con `AnimatePresence mode="wait"`. La barra de progreso es un elemento persistente que actualiza clases CSS sin re-renderizarse.
+
+## Backend — Cómo funciona
+
+### Capas por responsabilidad
+
+```
+Http/         →  Entrada: recibir peticiones, enviar respuestas, seguridad pre-dispatch
+Validation/   →  Verificar que los datos son correctos
+Controllers/  →  Orquestar el flujo de negocio
+Services/     →  Interactuar con recursos externos (DB, filesystem, cifrado, webhook)
+```
+
+### Flujo de una petición
+
+```
+POST /api/submit
+    │
+    ▼
+public/index.php
+    │
+    ├── Response::cors()                    ← headers CORS
+    ├── Router::dispatch()                  ← busca handler registrado
+    │       │
+    │       └── handler()
+    │            ├── Database::connect()    ← PDO con retry
+    │            ├── new FileUploader()
+    │            └── SubmissionController::store()
+    │                 │
+    │                 ├── sanitizeInput()                    ← trim
+    │                 ├── SubmissionValidator::validate()    ← reglas
+    │                 ├── FileUploader::upload()             ← CV
+    │                 └── save()                             ← INSERT
+    │                      │
+    │                      └── Response::success({ id })
+    │
+    └── catch (PDOException | RuntimeException | Throwable)
+              └── Response::error()
+```
+
+### Separación de responsabilidades
+
+| Clase | Capa | Responsabilidad |
+|-------|------|----------------|
+| `Router` | Http | Registrar rutas y despachar al handler correcto |
+| `Response` | Http | Enviar JSON con códigos HTTP y CORS restrictivo |
+| `Security` | Http | CSRF (HMAC), verificación de Origin, Content-Type, Honeypot |
+| `Validator` | Validation | Motor genérico (required, email, maxLength, pattern, url) |
+| `SubmissionValidator` | Validation | Reglas específicas con longitudes máximas y formatos |
+| `SubmissionController` | Controllers | Orquesta: sanitizar → validar → subir → cifrar → guardar → webhook |
+| `Database` | Services | Conexión PDO singleton con reintentos |
+| `Encryptor` | Services | AES-256-CBC para cifrado de email y teléfono (GDPR) |
+| `FileUploader` | Services | Subir CV con validación de tipo, tamaño y magic bytes |
+| `RateLimiter` | Services | Limita envíos por IP usando tabla en MySQL |
+| `SecurityLogger` | Services | Logging JSON estructurado de eventos de seguridad |
+| `WebhookForwarder` | Services | Reenvío HTTP al endpoint externo (configurable) |
+
+## Nginx — Gateway
+
+El contenedor `nginx` actúa como **reverse proxy**:
+
+- **Puerto 80**: Expone la API. Todas las peticiones `/api/*` se reenvían por FastCGI al contenedor `backend`.
+- **Puerto 8080**: Expone el frontend. Las peticiones `/api/*` van al backend, el resto se proxean al contenedor `frontend`.
+
+Incluye:
+- Compresión gzip para assets
+- Headers de seguridad (`X-Content-Type-Options`, `X-Frame-Options`)
+- Límite de upload a 15MB
+
+## Seguridad
+
+Ver [SECURITY.md](SECURITY.md) para la documentación completa de las 44 medidas implementadas.
+
+Resumen: CSRF tokens, rate limiting (Nginx + PHP), cifrado AES-256, CSP, honeypot, magic bytes verification, CORS restrictivo, Docker read-only con cap_drop, permisos MySQL mínimos, logging de seguridad.
+
+## Base de datos
+
+MySQL 8.0 con charset `utf8mb4`. Dos tablas:
+- `submissions`: campos del formulario (email/teléfono cifrados AES-256), índices en `email` y `created_at`
+- `rate_limits`: control de frecuencia por IP, índice compuesto `(ip_address, attempted_at)`
+
+El usuario de la app tiene permisos mínimos: solo `INSERT`/`SELECT` en submissions y `INSERT`/`SELECT`/`DELETE` en rate_limits.

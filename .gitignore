@@ -1,0 +1,10 @@
+.env
+uploads/
+*.log
+*.pem
+*.key
+*.crt
+.DS_Store
+node_modules/
+.idea/
+.vscode/
