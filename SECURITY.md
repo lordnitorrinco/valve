@@ -7,11 +7,11 @@ Este documento detalla las 44 medidas de seguridad implementadas, organizadas po
 ## Nginx (Gateway) — 8 medidas
 
 ### 1. Rate limiting
-Limita peticiones por IP: 10 req/min para `/api/*` y 30 req/min para assets. Previene brute force, DDoS básico y abuso del endpoint de envío.
+Limita peticiones por IP: 30 req/min para `/api/*` y 60 req/min para assets. Previene brute force, DDoS básico y abuso del endpoint de envío.
 
 **Archivo:** `nginx/default.conf`
 ```nginx
-limit_req_zone $binary_remote_addr zone=api_limit:10m rate=10r/m;
+limit_req_zone $binary_remote_addr zone=api_limit:10m rate=30r/m;
 limit_req zone=api_limit burst=5 nodelay;
 ```
 

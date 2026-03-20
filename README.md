@@ -77,7 +77,40 @@ open http://localhost:8080
 
 | Método | URL | Descripción |
 |--------|-----|-------------|
+| `GET`  | `/api/csrf-token` | Genera un token CSRF |
 | `POST` | `/api/submit` | Envía una solicitud de admisión |
+
+## Tests
+
+La suite de tests se ejecuta completamente en Docker (no necesitas PHP ni Node.js instalados):
+
+```bash
+# Ejecutar todos los tests (backend + frontend + integración)
+bash run-tests.sh
+```
+
+### Estructura de tests
+
+| Capa | Framework | Tests | Qué cubre |
+|------|-----------|-------|-----------|
+| Backend | PHPUnit 11 | 70 | Validator, SubmissionValidator, Encryptor, Security (CSRF), Router, FileUploader, SecurityLogger, WebhookForwarder, Database |
+| Frontend | Vitest 3 | 59 | Store, validaciones (4 funciones), createElement, showErrors, options/data |
+| Integración | Shell/curl | 27 | Frontend serving, security headers, CSRF flow, API validation, honeypot, HTTP methods, route protection, CORS, phpMyAdmin |
+
+### Ejecutar por separado
+
+```bash
+# Solo backend
+docker build -t evolve-backend-test -f backend/Dockerfile.test backend/
+docker run --rm evolve-backend-test
+
+# Solo frontend
+docker build -t evolve-frontend-test -f frontend/Dockerfile.test frontend/
+docker run --rm evolve-frontend-test
+
+# Solo integración (requiere docker compose up)
+bash tests/integration.sh
+```
 
 ## Desarrollo
 
