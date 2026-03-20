@@ -627,7 +627,6 @@ select.modern-input {
     background: var(--muted);
 }
 
-.admin-table th:first-child { width: 3.5rem; }
 .admin-table th:last-child { width: 10rem; }
 
 .admin-table td {

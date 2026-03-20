@@ -163,18 +163,16 @@ registerView('admin', function renderAdmin() {
         return;
       }
 
-      // Simple table: #, Name, Date — click opens detail popup
       const table = el('table', { className: 'admin-table' });
       const thead = el('thead');
       const hr = el('tr');
-      ['#', 'Nombre', 'Fecha'].forEach(h => hr.appendChild(el('th', null, h)));
+      ['Nombre', 'Fecha'].forEach(h => hr.appendChild(el('th', null, h)));
       thead.appendChild(hr);
       table.appendChild(thead);
 
       const tbody = el('tbody');
       submissions.forEach(s => {
         const row = el('tr', { onClick: () => showDetail(s) });
-        row.appendChild(el('td', null, String(s.id)));
         row.appendChild(el('td', { className: 'name-cell' }, `${s.first_name} ${s.last_name}`));
         row.appendChild(el('td', { className: 'date-cell' }, formatDate(s.created_at)));
         tbody.appendChild(row);
