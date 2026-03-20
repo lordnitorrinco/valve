@@ -78,6 +78,22 @@ $router->get('/api/csrf-token', function () use ($config) {
     Response::success(['token' => $token]);
 });
 
+// GET /api/submissions — List all submissions (admin panel)
+$router->get('/api/submissions', function () use ($config, $db) {
+    $encryptor  = new Encryptor($config['security']['encryption_key']);
+    $uploader   = new FileUploader($config['uploads']);
+    $controller = new SubmissionController($db, $uploader, $encryptor, $config['webhook']);
+    $controller->list();
+});
+
+// GET /api/submissions/{id}/cv — Download a CV file
+$router->get('/api/submissions/{id}/cv', function (array $params) use ($config, $db) {
+    $encryptor  = new Encryptor($config['security']['encryption_key']);
+    $uploader   = new FileUploader($config['uploads']);
+    $controller = new SubmissionController($db, $uploader, $encryptor, $config['webhook']);
+    $controller->downloadCv((int) $params['id']);
+});
+
 // POST /api/submit — Process a new admission form submission
 $router->post('/api/submit', function () use ($config, $db) {
     $uploader   = new FileUploader($config['uploads']);

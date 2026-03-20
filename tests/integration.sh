@@ -215,6 +215,25 @@ assert "OPTIONS returns 204" "204" "$options_response"
 
 sleep 0.5
 
+# ── Admin API ─────────────────────────────────────────────────
+# GET /api/submissions returns a JSON array; /admin serves the SPA.
+echo -e "\n${YELLOW}═══ Admin API ═══${NC}"
+
+sleep 1
+
+admin_response=$(curl -s "$FRONTEND/api/submissions" 2>/dev/null) || true
+assert "GET /api/submissions returns JSON" "submissions" "$admin_response"
+
+assert_status "/admin serves SPA (200)" "200" "$FRONTEND/admin"
+
+admin_html=$(curl -s "$FRONTEND/admin" 2>/dev/null) || true
+assert "/admin returns HTML shell" '<!DOCTYPE html>' "$admin_html"
+assert "/admin contains app div" 'id="app"' "$admin_html"
+
+assert_status "CV for nonexistent ID returns 404" "404" "$FRONTEND/api/submissions/99999/cv"
+
+sleep 0.5
+
 # ── phpMyAdmin ────────────────────────────────────────────────
 # Optional DB admin UI reachable on PMA_PORT (default 8081).
 echo -e "\n${YELLOW}═══ phpMyAdmin ═══${NC}"

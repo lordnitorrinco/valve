@@ -63,4 +63,19 @@ class RouterTest extends TestCase
         $this->assertCount(2, $routes['GET']);
         $this->assertCount(1, $routes['POST']);
     }
+
+    /** Tests that routes with {param} placeholders are stored in the route table. */
+    #[Test]
+    public function parameterized_route_is_registered(): void
+    {
+        $router = new Router();
+        $router->get('/api/submissions/{id}/cv', function (array $params) {});
+
+        $reflection = new ReflectionClass($router);
+        $prop = $reflection->getProperty('routes');
+        $prop->setAccessible(true);
+        $routes = $prop->getValue($router);
+
+        $this->assertArrayHasKey('/api/submissions/{id}/cv', $routes['GET']);
+    }
 }

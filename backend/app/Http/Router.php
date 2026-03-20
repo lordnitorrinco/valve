@@ -30,6 +30,7 @@ class Router
     /**
      * Match the current request against registered routes and execute the handler.
      *
+     * Supports exact paths and patterns with {param} placeholders.
      * Terminates with 405 for disallowed methods or 404 for unmatched paths.
      */
     public function dispatch(): void
@@ -41,12 +42,24 @@ class Router
             Response::error('Method not allowed', 405);
         }
 
+        // Try exact match first
         $handler = $this->routes[$method][$uri] ?? null;
-
         if ($handler) {
             $handler();
-        } else {
-            Response::error('Not found', 404);
+            return;
         }
+
+        // Try pattern matching for routes with {param} placeholders
+        foreach ($this->routes[$method] ?? [] as $pattern => $handler) {
+            if (!str_contains($pattern, '{')) continue;
+            $regex = '#^' . preg_replace('#\{(\w+)\}#', '(?P<$1>[^/]+)', $pattern) . '$#';
+            if (preg_match($regex, $uri, $matches)) {
+                $params = array_filter($matches, 'is_string', ARRAY_FILTER_USE_KEY);
+                $handler($params);
+                return;
+            }
+        }
+
+        Response::error('Not found', 404);
     }
 }

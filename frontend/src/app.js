@@ -16,7 +16,11 @@ import './steps/3-education.js';
 import './steps/4-experience.js';
 import './steps/5-consent.js';
 import './steps/results.js';
+import './steps/admin.js';
 
 // Bootstrap the application
 initApp();
-goTo('intro');
+
+// Route based on URL path — /admin opens the admin panel
+const startView = window.location.pathname === '/admin' ? 'admin' : 'intro';
+goTo(startView);
