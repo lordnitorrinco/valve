@@ -1,5 +1,20 @@
 <?php
 
+/**
+ * Front controller — single entry point for all API requests.
+ *
+ * Request lifecycle:
+ *  1. Load dependencies and configuration
+ *  2. Set CORS headers
+ *  3. Handle OPTIONS preflight immediately
+ *  4. For POST requests: apply security checks (content-type, origin,
+ *     honeypot, CSRF) and rate limiting
+ *  5. Log the request
+ *  6. Dispatch to the appropriate route handler
+ *  7. Catch and handle any exceptions
+ */
+
+// ── Dependencies ─────────────────────────────────────────────
 require_once __DIR__ . '/../app/Http/Response.php';
 require_once __DIR__ . '/../app/Http/Router.php';
 require_once __DIR__ . '/../app/Http/Security.php';
@@ -13,14 +28,18 @@ require_once __DIR__ . '/../app/Validation/Validator.php';
 require_once __DIR__ . '/../app/Validation/SubmissionValidator.php';
 require_once __DIR__ . '/../app/Controllers/SubmissionController.php';
 
+// ── Configuration ────────────────────────────────────────────
 $config = require __DIR__ . '/../config/app.php';
 
+// ── CORS (applied to every response, including errors) ──────
 Response::cors($config['security']['allowed_origin']);
 
+// ── OPTIONS preflight — respond immediately ─────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     Response::noContent();
 }
 
+// ── POST-only security checks ───────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     Security::checkContentType();
     Security::checkOrigin($config['security']['allowed_origin']);
@@ -31,8 +50,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     );
 }
 
+// ── Database connection ─────────────────────────────────────
 $db = Database::connect($config['db']);
 
+// ── Application-level rate limiting (POST only) ─────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $rateLimiter = new RateLimiter(
         $db,
@@ -42,18 +63,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $rateLimiter->check($_SERVER['REMOTE_ADDR']);
 }
 
+// ── Request logging ─────────────────────────────────────────
 SecurityLogger::log('request', [
     'method' => $_SERVER['REQUEST_METHOD'],
     'uri'    => $_SERVER['REQUEST_URI'],
 ]);
 
+// ── Routes ──────────────────────────────────────────────────
 $router = new Router();
 
+// GET /api/csrf-token — Generate a fresh CSRF token for the frontend
 $router->get('/api/csrf-token', function () use ($config) {
     $token = Security::generateCsrf($config['security']['csrf_secret']);
     Response::success(['token' => $token]);
 });
 
+// POST /api/submit — Process a new admission form submission
 $router->post('/api/submit', function () use ($config, $db) {
     $uploader   = new FileUploader($config['uploads']);
     $encryptor  = new Encryptor($config['security']['encryption_key']);
@@ -61,6 +86,7 @@ $router->post('/api/submit', function () use ($config, $db) {
     $controller->store();
 });
 
+// ── Dispatch with error handling ────────────────────────────
 try {
     $router->dispatch();
 } catch (PDOException $e) {

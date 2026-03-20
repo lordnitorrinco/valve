@@ -1,7 +1,21 @@
+/**
+ * Result screens shown after form completion or disqualification.
+ *
+ * Three possible outcomes:
+ *  - "rejected"  → User declined the data consent (can go back)
+ *  - "killer"    → User doesn't meet minimum requirements (education/english)
+ *  - "success"   → Form submitted successfully
+ */
+
 import { registerView, goTo } from '../framework/router.js';
 import { el } from '../framework/createElement.js';
 import { SVG } from '../ui/icons.js';
 
+/**
+ * Consent rejection screen.
+ * Explains that the process cannot continue without consent
+ * and offers a button to go back and accept.
+ */
 registerView('rejected', function renderRejected() {
   const page = el('div', { className: 'status-page' });
 
@@ -28,6 +42,13 @@ registerView('rejected', function renderRejected() {
   return page;
 });
 
+/**
+ * Killer (disqualification) screen.
+ * Shown when the applicant doesn't meet minimum requirements:
+ *  - Education below FP Grado Superior
+ *  - English below B1
+ *  - Not willing to complete training
+ */
 registerView('killer', function renderKiller() {
   const page = el('div', { className: 'status-page' });
 
@@ -43,6 +64,11 @@ registerView('killer', function renderKiller() {
   return page;
 });
 
+/**
+ * Success screen with animated check icon.
+ * Shown after a successful form submission. Displays a
+ * "next steps" card explaining that Evolve will reach out by phone.
+ */
 registerView('success', function renderSuccess() {
   const page = el('div', { className: 'status-page' });
 
@@ -51,6 +77,7 @@ registerView('success', function renderSuccess() {
     style: 'width:2rem;height:auto;margin-bottom:2rem'
   }));
 
+  // Animated check circle (scales in after 200ms)
   const iconCircle = el('div', { className: 'status-icon-circle success', innerHTML: SVG.checkCircle });
   iconCircle.style.transform = 'scale(0)';
   iconCircle.style.transition = 'transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
@@ -59,6 +86,7 @@ registerView('success', function renderSuccess() {
 
   page.appendChild(el('h1', { className: 'text-2xl font-bold mb-4' }, 'Gracias por completar tu aplicación'));
 
+  // Next steps info card
   const card = el('div', { className: 'modern-card max-w-sm', style: 'padding:1.25rem;width:100%' });
   const cardIcon = el('div', { style: 'display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem' });
   cardIcon.appendChild(el('div', {

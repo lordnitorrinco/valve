@@ -1,3 +1,7 @@
+/**
+ * Partner company logos displayed in the intro screen marquee.
+ * Each entry has a display name and path to the logo asset.
+ */
 export const PARTNERS = [
   { name: 'Accenture', logo: '/assets/partners/accenture-BLOB95js.svg' },
   { name: 'Indra', logo: '/assets/partners/indra.svg' },

@@ -1,12 +1,17 @@
 #!/bin/bash
+# Evolve Academy — full test runner: backend (PHPUnit), frontend (Vitest), integration.
+# Exits with non-zero if any stage fails; aggregates exit code in EXIT_CODE.
+
 set -euo pipefail
 
+# ── Terminal colors for pass/fail banners ─────────────────────
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
+# ── Final exit status (0 = all passed) ──────────────────────
 EXIT_CODE=0
 
 echo -e "\n${CYAN}╔══════════════════════════════════════════════╗${NC}"
@@ -14,6 +19,7 @@ echo -e "${CYAN}║   Evolve Academy — Suite de Tests Completa   ║${NC}"
 echo -e "${CYAN}╚══════════════════════════════════════════════╝${NC}\n"
 
 # ── 1. Backend Unit Tests (PHPUnit) ──────────────────────────
+# Builds backend test image and runs PHPUnit inside Docker.
 echo -e "${YELLOW}▶ [1/3] Backend — PHPUnit${NC}\n"
 
 docker build -t evolve-backend-test -f backend/Dockerfile.test backend/ 2>/dev/null
@@ -26,6 +32,7 @@ else
 fi
 
 # ── 2. Frontend Unit Tests (Vitest) ──────────────────────────
+# Builds frontend test image and runs Vitest in jsdom.
 echo -e "${YELLOW}▶ [2/3] Frontend — Vitest${NC}\n"
 
 docker build -t evolve-frontend-test -f frontend/Dockerfile.test frontend/ 2>/dev/null
@@ -38,6 +45,7 @@ else
 fi
 
 # ── 3. Integration Tests ─────────────────────────────────────
+# Ensures Compose stack is up, then runs HTTP/API/security checks via integration.sh.
 echo -e "${YELLOW}▶ [3/3] Integración — API + Security${NC}\n"
 
 COMPOSE_RUNNING=$(docker compose ps --status running -q 2>/dev/null | wc -l)
@@ -57,6 +65,7 @@ else
 fi
 
 # ── Summary ───────────────────────────────────────────────────
+# Prints overall pass/fail based on EXIT_CODE.
 echo -e "${CYAN}╔══════════════════════════════════════════════╗${NC}"
 if [[ $EXIT_CODE -eq 0 ]]; then
   echo -e "${CYAN}║${NC}   ${GREEN}✓ Todos los tests han pasado${NC}               ${CYAN}║${NC}"

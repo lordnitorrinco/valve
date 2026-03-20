@@ -1,7 +1,17 @@
 <?php
 
+/**
+ * Centralized security checks applied before any POST request is processed.
+ *
+ * Each static method either passes silently or terminates the request
+ * with an appropriate HTTP error via Response::error().
+ */
 class Security
 {
+    /**
+     * Reject requests whose Content-Type is not multipart/form-data.
+     * Prevents JSON/XML injection and ensures file uploads work correctly.
+     */
     public static function checkContentType(): void
     {
         $ct = $_SERVER['CONTENT_TYPE'] ?? '';
@@ -11,6 +21,12 @@ class Security
         }
     }
 
+    /**
+     * Verify that the request comes from the allowed frontend origin.
+     * Checks the Origin header first, falls back to Referer.
+     *
+     * @param string $allowed  The whitelisted origin (e.g. "http://localhost:8080")
+     */
     public static function checkOrigin(string $allowed): void
     {
         $origin  = $_SERVER['HTTP_ORIGIN'] ?? '';
@@ -27,6 +43,12 @@ class Security
         }
     }
 
+    /**
+     * Detect bots by checking the honeypot field.
+     *
+     * If the hidden "website" field contains any value, it was filled by a bot.
+     * Returns a fake success response so the bot thinks the submission worked.
+     */
     public static function checkHoneypot(): void
     {
         if (!empty($_POST['website'] ?? '')) {
@@ -35,6 +57,15 @@ class Security
         }
     }
 
+    /**
+     * Generate a stateless CSRF token using HMAC-SHA256.
+     *
+     * The token encodes the current timestamp signed with the server secret.
+     * No session storage is needed — validation re-computes the HMAC.
+     *
+     * @param  string $secret  Server-side CSRF secret key
+     * @return string          Base64-encoded "timestamp.hmac" token
+     */
     public static function generateCsrf(string $secret): string
     {
         $time = time();
@@ -42,6 +73,16 @@ class Security
         return base64_encode($time . '.' . $hmac);
     }
 
+    /**
+     * Validate a CSRF token received in the X-CSRF-Token header.
+     *
+     * Checks: valid base64, contains separator, not expired, HMAC matches.
+     * Terminates with 403 on any failure.
+     *
+     * @param string $token   The token from the request header
+     * @param string $secret  Server-side CSRF secret key
+     * @param int    $maxAge  Maximum token age in seconds (default: 15 min)
+     */
     public static function validateCsrf(string $token, string $secret, int $maxAge = 900): void
     {
         $decoded = base64_decode($token, true);
@@ -58,6 +99,7 @@ class Security
             Response::error('CSRF token expired', 403);
         }
 
+        // Timing-safe comparison to prevent side-channel attacks
         $expected = hash_hmac('sha256', (string) $time, $secret);
         if (!hash_equals($expected, $hmac)) {
             SecurityLogger::log('csrf_mismatch');

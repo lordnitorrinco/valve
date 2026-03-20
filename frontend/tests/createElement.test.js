@@ -1,34 +1,47 @@
+/**
+ * Unit tests for the lightweight DOM helpers in `framework/createElement.js`.
+ * Covers `el()` element creation, `showErrors()` syncing validation state to the
+ * DOM, and `clearFieldError()` clearing a single field’s error UI.
+ */
+
 import { describe, it, expect, beforeEach } from 'vitest';
 import { state } from '../src/framework/store.js';
 import { el, showErrors, clearFieldError } from '../src/framework/createElement.js';
 
+// Tag, props, children, events, and style string handling
 describe('el() - createElement', () => {
+  // Minimal element factory
   it('creates an element with the given tag', () => {
     const node = el('div');
     expect(node.tagName).toBe('DIV');
   });
 
+  // className prop maps to DOM class
   it('sets className', () => {
     const node = el('div', { className: 'test-class' });
     expect(node.className).toBe('test-class');
   });
 
+  // innerHTML for rich snippets
   it('sets innerHTML', () => {
     const node = el('div', { innerHTML: '<b>bold</b>' });
     expect(node.innerHTML).toBe('<b>bold</b>');
   });
 
+  // Arbitrary HTML attributes via props
   it('sets attributes', () => {
     const node = el('input', { type: 'text', placeholder: 'Enter' });
     expect(node.getAttribute('type')).toBe('text');
     expect(node.getAttribute('placeholder')).toBe('Enter');
   });
 
+  // Text nodes from variadic string children
   it('appends text children', () => {
     const node = el('p', null, 'Hello', ' ', 'World');
     expect(node.textContent).toBe('Hello World');
   });
 
+  // Nested elements as children
   it('appends element children', () => {
     const child = el('span', null, 'inner');
     const parent = el('div', null, child);
@@ -36,17 +49,20 @@ describe('el() - createElement', () => {
     expect(parent.firstChild.tagName).toBe('SPAN');
   });
 
+  // Null slots are skipped in children list
   it('ignores null children', () => {
     const node = el('div', null, null, 'text', null);
     expect(node.childNodes).toHaveLength(1);
   });
 
+  // Arrays of nodes are flattened into parent
   it('flattens array children', () => {
     const items = ['a', 'b', 'c'].map(t => el('li', null, t));
     const list = el('ul', null, items);
     expect(list.children).toHaveLength(3);
   });
 
+  // onClick and similar event props
   it('attaches event listeners', () => {
     let clicked = false;
     const btn = el('button', { onClick: () => { clicked = true; } });
@@ -54,18 +70,21 @@ describe('el() - createElement', () => {
     expect(clicked).toBe(true);
   });
 
+  // style as raw attribute string (not CSSStyleDeclaration)
   it('sets style as string attribute', () => {
     const node = el('div', { style: 'color:red' });
     expect(node.getAttribute('style')).toBe('color:red');
   });
 });
 
+// Renders field-level errors from `state.errors` into `.field-group` markup
 describe('showErrors', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
     state.errors = {};
   });
 
+  // Injects `.field-error` and `.error` class when state has a message
   it('shows error message on field group', () => {
     const input = el('input', { className: 'modern-input' });
     const group = el('div', { className: 'field-group' }, input);
@@ -81,6 +100,7 @@ describe('showErrors', () => {
     expect(input.classList.contains('error')).toBe(true);
   });
 
+  // Clears DOM and classes when error removed from state
   it('removes error when field has no error', () => {
     const input = el('input', { className: 'modern-input error' });
     const errorP = el('p', { className: 'field-error' }, 'Old error');
@@ -96,7 +116,9 @@ describe('showErrors', () => {
   });
 });
 
+// Single-field cleanup for live validation UX
 describe('clearFieldError', () => {
+  // Syncs state + DOM for one field key
   it('removes error from state and DOM', () => {
     state.errors = { name: 'Required' };
 
@@ -113,6 +135,7 @@ describe('clearFieldError', () => {
     expect(group.querySelector('.field-error')).toBeNull();
   });
 
+  // No-op when nothing to clear
   it('does nothing when no error exists', () => {
     state.errors = {};
     clearFieldError('name', null);

@@ -3,6 +3,10 @@
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\Test;
 
+/**
+ * Unit tests for SecurityLogger.
+ * Asserts JSON log shape, timestamps, user-agent truncation, missing $_SERVER fallbacks, and Unicode context.
+ */
 class SecurityLoggerTest extends TestCase
 {
     private string $logFile;
@@ -21,6 +25,7 @@ class SecurityLoggerTest extends TestCase
         @unlink($this->logFile);
     }
 
+    /** Tests that log writes a [SECURITY] JSON line with event, IP, UA, and context. */
     #[Test]
     public function log_writes_json_to_error_log(): void
     {
@@ -34,6 +39,7 @@ class SecurityLoggerTest extends TestCase
         $this->assertStringContainsString('TestBrowser', $content);
     }
 
+    /** Tests that each log line includes an ISO-style timestamp field. */
     #[Test]
     public function log_includes_timestamp(): void
     {
@@ -44,6 +50,7 @@ class SecurityLoggerTest extends TestCase
         $this->assertMatchesRegularExpression('/\d{4}-\d{2}-\d{2}T/', $content);
     }
 
+    /** Tests that an overly long User-Agent is truncated in the logged JSON. */
     #[Test]
     public function log_truncates_long_user_agent(): void
     {
@@ -61,6 +68,7 @@ class SecurityLoggerTest extends TestCase
         $this->assertLessThanOrEqual(200, strlen($data['ua']));
     }
 
+    /** Tests that missing REMOTE_ADDR and HTTP_USER_AGENT log as "unknown". */
     #[Test]
     public function log_handles_missing_server_vars(): void
     {
@@ -73,6 +81,7 @@ class SecurityLoggerTest extends TestCase
         $this->assertStringContainsString('"ua":"unknown"', $content);
     }
 
+    /** Tests that Unicode characters in context are preserved in the log output. */
     #[Test]
     public function log_handles_unicode_context(): void
     {

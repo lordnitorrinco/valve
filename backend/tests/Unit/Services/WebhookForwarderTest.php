@@ -3,6 +3,10 @@
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\Test;
 
+/**
+ * Unit tests for WebhookForwarder.
+ * Covers empty URL no-op, unreachable endpoint logging, payload shape, and JSON serialization of form data.
+ */
 class WebhookForwarderTest extends TestCase
 {
     private string $logFile;
@@ -21,6 +25,7 @@ class WebhookForwarderTest extends TestCase
         @unlink($this->logFile);
     }
 
+    /** Tests that forwarding with an empty URL produces no error_log output. */
     #[Test]
     public function forward_with_empty_url_does_nothing(): void
     {
@@ -30,6 +35,7 @@ class WebhookForwarderTest extends TestCase
         $this->assertEmpty(trim($content), 'No log should be generated for empty URL');
     }
 
+    /** Tests that an unreachable webhook URL logs a failure event. */
     #[Test]
     public function forward_logs_failure_for_unreachable_url(): void
     {
@@ -44,6 +50,7 @@ class WebhookForwarderTest extends TestCase
         $this->assertStringContainsString('webhook_failed', $content);
     }
 
+    /** Tests that sample payload data does not include honeypot or CSRF keys (contract for forward input). */
     #[Test]
     public function forward_does_not_include_security_fields(): void
     {
@@ -57,6 +64,7 @@ class WebhookForwarderTest extends TestCase
         $this->assertArrayNotHasKey('X-CSRF-Token', $data);
     }
 
+    /** Tests that representative form fields encode to JSON with expected keys and values. */
     #[Test]
     public function forward_sends_all_form_data(): void
     {

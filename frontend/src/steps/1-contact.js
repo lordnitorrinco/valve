@@ -1,3 +1,10 @@
+/**
+ * Step 1 — Contact information.
+ *
+ * Collects: first name, last name, gender, email, phone number.
+ * Validates all fields before proceeding to step 2 (location).
+ */
+
 import { registerView, goTo } from '../framework/router.js';
 import { state } from '../framework/store.js';
 import { el, showErrors } from '../framework/createElement.js';

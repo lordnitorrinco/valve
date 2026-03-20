@@ -1,3 +1,13 @@
+/**
+ * Step 3 — Education.
+ *
+ * Collects: education level, study area (conditional on level),
+ * graduation year (conditional on level), English proficiency.
+ *
+ * Conditional fields appear/disappear based on the selected
+ * education level using a conditional slot container.
+ */
+
 import { registerView, goTo } from '../framework/router.js';
 import { state } from '../framework/store.js';
 import { EDUCATION_LEVELS, EDUCATION_NO_AREA, EDUCATION_NO_YEAR, ENGLISH_LEVELS, STUDY_AREAS, GRADUATION_YEARS } from '../data/options.js';
@@ -21,8 +31,11 @@ registerView('education', function renderEducation() {
   });
 
   const fields = el('div', { className: 'form-fields' });
+
+  // Container for study area and graduation year (shown conditionally)
   const eduSlot = conditionalSlot();
 
+  /** Show/hide study area and graduation year based on education level */
   function renderEduFields(val) {
     eduSlot.innerHTML = '';
     const level = val || state.formData.education;

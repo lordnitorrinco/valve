@@ -1,17 +1,22 @@
 #!/bin/bash
+# HTTP integration tests against the running stack (frontend nginx, PHP API, optional phpMyAdmin).
+# Uses curl to assert status codes, headers, CSRF, validation, honeypot, CORS, and route hardening.
+
 set -euo pipefail
 
-# ── Colores ───────────────────────────────────────────────────
+# ── ANSI colors for pass/fail lines ───────────────────────────
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
+# ── Counters and base URLs (overridable via env) ─────────────
 PASS=0
 FAIL=0
 API="http://localhost:${API_PORT:-80}"
 FRONTEND="http://localhost:${FRONTEND_PORT:-8080}"
 
+# Asserts that `actual` output contains substring `expected`; bumps PASS/FAIL.
 assert() {
   local desc="$1"
   local expected="$2"
@@ -28,6 +33,7 @@ assert() {
   fi
 }
 
+# Asserts HTTP status code for a URL and optional method (default GET).
 assert_status() {
   local desc="$1"
   local expected="$2"
@@ -46,6 +52,7 @@ assert_status() {
   fi
 }
 
+# Fetches a CSRF token from the API JSON endpoint (with short delay for readiness).
 get_csrf() {
   sleep 0.5
   local resp
@@ -54,6 +61,7 @@ get_csrf() {
 }
 
 # ── Wait for services ────────────────────────────────────────
+# Polls frontend until it responds or times out after 30s.
 echo -e "\n${YELLOW}Esperando a que los servicios estén listos...${NC}"
 for i in $(seq 1 30); do
   if curl -s "$FRONTEND" > /dev/null 2>&1; then
@@ -68,6 +76,7 @@ for i in $(seq 1 30); do
 done
 
 # ── Frontend ──────────────────────────────────────────────────
+# Smoke test: HTML shell, app mount, assets, and static 200s.
 echo -e "\n${YELLOW}═══ Frontend ═══${NC}"
 
 response=$(curl -s "$FRONTEND")
@@ -83,6 +92,7 @@ assert_status "Logo SVG devuelve 200" "200" "$FRONTEND/assets/logo-evolve.svg"
 sleep 1
 
 # ── Security Headers ─────────────────────────────────────────
+# nginx / app security headers and API CORS exposure for CSRF.
 echo -e "\n${YELLOW}═══ Security Headers ═══${NC}"
 
 headers=$(curl -s -I "$FRONTEND")
@@ -99,6 +109,7 @@ assert "API allows CSRF header" "X-CSRF-Token" "$api_headers"
 sleep 1
 
 # ── CSRF Token Endpoint ──────────────────────────────────────
+# JSON token endpoint returns a non-empty token string.
 echo -e "\n${YELLOW}═══ CSRF Token ═══${NC}"
 
 csrf_response=$(curl -s "$API/api/csrf-token")
@@ -116,6 +127,7 @@ fi
 sleep 1
 
 # ── API Validation ────────────────────────────────────────────
+# Wrong Content-Type → 415; empty multipart → 422 with field errors in body.
 echo -e "\n${YELLOW}═══ API Validation ═══${NC}"
 
 # POST without Content-Type multipart/form-data
@@ -155,6 +167,7 @@ assert "Validation response contains fields" "fields" "$body"
 sleep 1
 
 # ── Honeypot ──────────────────────────────────────────────────
+# Hidden website field filled → fake success (spam trap).
 echo -e "\n${YELLOW}═══ Honeypot ═══${NC}"
 
 csrf_hp=$(get_csrf)
@@ -170,6 +183,7 @@ assert "Honeypot returns fake success" "Solicitud recibida correctamente" "$hone
 sleep 1
 
 # ── Method Restrictions ───────────────────────────────────────
+# Submit route only allows POST (and OPTIONS); others → 405.
 echo -e "\n${YELLOW}═══ Method Restrictions ═══${NC}"
 
 assert_status "PUT method returns 405" "405" "$API/api/submit" "PUT"
@@ -179,6 +193,7 @@ assert_status "PATCH method returns 405" "405" "$API/api/submit" "PATCH"
 sleep 0.5
 
 # ── Route Protection ─────────────────────────────────────────
+# Unknown API paths and sensitive dotfiles return 404.
 echo -e "\n${YELLOW}═══ Route Protection ═══${NC}"
 
 assert_status "Unknown API route returns 404" "404" "$API/api/nonexistent"
@@ -188,6 +203,7 @@ assert_status ".git not accessible" "404" "$API/.git/config"
 sleep 0.5
 
 # ── OPTIONS (CORS Preflight) ─────────────────────────────────
+# Browser preflight for POST from frontend origin → 204.
 echo -e "\n${YELLOW}═══ CORS Preflight ═══${NC}"
 
 options_response=$(curl -s -o /dev/null -w "%{http_code}" -X OPTIONS \
@@ -200,12 +216,14 @@ assert "OPTIONS returns 204" "204" "$options_response"
 sleep 0.5
 
 # ── phpMyAdmin ────────────────────────────────────────────────
+# Optional DB admin UI reachable on PMA_PORT (default 8081).
 echo -e "\n${YELLOW}═══ phpMyAdmin ═══${NC}"
 
 pma_port="${PMA_PORT:-8081}"
 assert_status "phpMyAdmin accessible" "200" "http://localhost:$pma_port"
 
 # ── Summary ───────────────────────────────────────────────────
+# Exit 1 if any assertion failed; otherwise 0.
 echo -e "\n${YELLOW}═══════════════════════════════════════${NC}"
 TOTAL=$((PASS + FAIL))
 echo -e "  Total:  $TOTAL"

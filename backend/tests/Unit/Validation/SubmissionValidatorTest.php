@@ -3,6 +3,10 @@
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\Test;
 
+/**
+ * Unit tests for SubmissionValidator (job application form).
+ * Verifies happy path, required fields, formats, lengths, optional fields, and bulk empty input.
+ */
 class SubmissionValidatorTest extends TestCase
 {
     private function validData(): array
@@ -34,6 +38,7 @@ class SubmissionValidatorTest extends TestCase
         ];
     }
 
+    /** Tests that a fully valid payload produces no validation errors. */
     #[Test]
     public function valid_data_returns_no_errors(): void
     {
@@ -41,6 +46,7 @@ class SubmissionValidatorTest extends TestCase
         $this->assertEmpty($errors);
     }
 
+    /** Tests that clearing required fields yields errors for those keys. */
     #[Test]
     public function missing_required_fields_return_errors(): void
     {
@@ -56,6 +62,7 @@ class SubmissionValidatorTest extends TestCase
         $this->assertArrayHasKey('phone', $errors);
     }
 
+    /** Tests that a malformed email string triggers an email error. */
     #[Test]
     public function invalid_email_format_returns_error(): void
     {
@@ -66,6 +73,7 @@ class SubmissionValidatorTest extends TestCase
         $this->assertArrayHasKey('email', $errors);
     }
 
+    /** Tests that a non-numeric phone value fails phone validation. */
     #[Test]
     public function invalid_phone_format_returns_error(): void
     {
@@ -76,6 +84,7 @@ class SubmissionValidatorTest extends TestCase
         $this->assertArrayHasKey('phone', $errors);
     }
 
+    /** Tests that fields longer than configured max length surface errors. */
     #[Test]
     public function fields_exceeding_max_length_return_errors(): void
     {
@@ -86,6 +95,7 @@ class SubmissionValidatorTest extends TestCase
         $this->assertArrayHasKey('firstName', $errors);
     }
 
+    /** Tests that LinkedIn URL must be a valid URL when provided. */
     #[Test]
     public function invalid_linkedin_url_returns_error(): void
     {
@@ -96,6 +106,7 @@ class SubmissionValidatorTest extends TestCase
         $this->assertArrayHasKey('linkedinUrl', $errors);
     }
 
+    /** Tests that date of birth must match the expected format (not e.g. DD/MM/YYYY). */
     #[Test]
     public function invalid_date_format_returns_error(): void
     {
@@ -106,6 +117,7 @@ class SubmissionValidatorTest extends TestCase
         $this->assertArrayHasKey('dateOfBirth', $errors);
     }
 
+    /** Tests that optional URL and text fields may be empty without errors. */
     #[Test]
     public function empty_optional_fields_do_not_cause_errors(): void
     {
@@ -118,6 +130,7 @@ class SubmissionValidatorTest extends TestCase
         $this->assertEmpty($errors);
     }
 
+    /** Tests that blanking all fields reports every required field as missing. */
     #[Test]
     public function all_required_fields_missing_returns_all_errors(): void
     {

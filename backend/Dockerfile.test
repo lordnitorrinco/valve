@@ -1,14 +1,22 @@
+# Test runner container for PHPUnit backend tests.
+# Includes Composer for dependency installation.
+
 FROM php:8.3-cli-alpine
 
+# Install the same extensions as the production image
 RUN apk add --no-cache libcurl curl-dev \
     && docker-php-ext-install pdo pdo_mysql curl
 
+# Install Composer from official image
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app
 
+# Copy entire backend (source + tests + config)
 COPY . .
 
+# Install PHPUnit and generate autoloader
 RUN composer install --no-interaction --prefer-dist
 
+# Run tests by default
 CMD ["vendor/bin/phpunit", "--colors=always"]

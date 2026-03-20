@@ -1,7 +1,18 @@
 <?php
 
+/**
+ * Admission form-specific validation rules.
+ *
+ * Defines which fields are required, their maximum lengths,
+ * and format constraints (email, phone, URL, date).
+ * Uses the generic Validator under the hood.
+ */
 class SubmissionValidator
 {
+    /**
+     * Required fields and their human-readable error messages.
+     * Every key listed here must be non-empty in the submitted data.
+     */
     private const REQUIRED_FIELDS = [
         'firstName'          => 'El nombre es obligatorio',
         'lastName'           => 'Los apellidos son obligatorios',
@@ -18,6 +29,10 @@ class SubmissionValidator
         'willingToTrain'     => 'Campo obligatorio',
     ];
 
+    /**
+     * Maximum allowed character lengths per field.
+     * Prevents oversized payloads and potential buffer-based attacks.
+     */
     private const MAX_LENGTHS = [
         'firstName'          => 100,
         'lastName'           => 150,
@@ -34,18 +49,27 @@ class SubmissionValidator
         'education'          => 50,
     ];
 
+    /**
+     * Validate the full admission form payload.
+     *
+     * @param  array<string, string> $data  Sanitized form data
+     * @return array<string, string>        Field => error (empty if valid)
+     */
     public static function validate(array $data): array
     {
         $v = new Validator();
 
+        // Presence checks
         foreach (self::REQUIRED_FIELDS as $field => $message) {
             $v->required($field, $data[$field], $message);
         }
 
+        // Length limits
         foreach (self::MAX_LENGTHS as $field => $max) {
             $v->maxLength($field, $data[$field], $max, "Máximo $max caracteres");
         }
 
+        // Format-specific rules
         $v->email('email', $data['email'], 'Email no válido');
         $v->pattern('phone', $data['phone'], '/^[\d\s\-+()]{7,30}$/', 'Formato de teléfono no válido');
 

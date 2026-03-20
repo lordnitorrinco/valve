@@ -4,6 +4,10 @@ use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\Attributes\DataProvider;
 
+/**
+ * Unit tests for the Encryptor service.
+ * Verifies AES-256-CBC encryption/decryption, key handling, and edge cases.
+ */
 class EncryptorTest extends TestCase
 {
     private Encryptor $encryptor;
@@ -13,6 +17,7 @@ class EncryptorTest extends TestCase
         $this->encryptor = new Encryptor('test-secret-key-for-unit-tests');
     }
 
+    /** Tests that encrypt followed by decrypt returns the original plaintext. */
     #[Test]
     public function encrypt_and_decrypt_roundtrip(): void
     {
@@ -23,6 +28,7 @@ class EncryptorTest extends TestCase
         $this->assertEquals($plaintext, $decrypted);
     }
 
+    /** Tests that ciphertext is not identical to plaintext (obfuscation). */
     #[Test]
     public function encrypted_value_differs_from_plaintext(): void
     {
@@ -32,6 +38,7 @@ class EncryptorTest extends TestCase
         $this->assertNotEquals($plaintext, $encrypted);
     }
 
+    /** Tests that random IV/nonce makes each encryption output unique for the same input. */
     #[Test]
     public function each_encryption_produces_different_ciphertext(): void
     {
@@ -42,6 +49,7 @@ class EncryptorTest extends TestCase
         $this->assertNotEquals($encrypted1, $encrypted2);
     }
 
+    /** Tests that encrypted output is valid Base64-decodable bytes. */
     #[Test]
     public function encrypted_output_is_valid_base64(): void
     {
@@ -51,6 +59,7 @@ class EncryptorTest extends TestCase
         $this->assertNotFalse($decoded);
     }
 
+    /** Tests that empty plaintext encrypts and decrypts to empty string. */
     #[Test]
     public function empty_string_returns_empty_string(): void
     {
@@ -58,6 +67,7 @@ class EncryptorTest extends TestCase
         $this->assertEquals('', $this->encryptor->decrypt(''));
     }
 
+    /** Tests that decrypting with a different key does not recover the original secret. */
     #[Test]
     public function decrypt_with_wrong_key_returns_empty(): void
     {
@@ -68,6 +78,7 @@ class EncryptorTest extends TestCase
         $this->assertNotEquals('secret data', $result);
     }
 
+    /** Tests that decrypt handles invalid Base64 by yielding empty string. */
     #[Test]
     public function decrypt_invalid_base64_returns_empty(): void
     {
@@ -75,6 +86,7 @@ class EncryptorTest extends TestCase
         $this->assertEquals('', $result);
     }
 
+    /** Tests that ciphertext shorter than IV + tag length decrypts to empty. */
     #[Test]
     public function decrypt_too_short_data_returns_empty(): void
     {
@@ -82,6 +94,7 @@ class EncryptorTest extends TestCase
         $this->assertEquals('', $result);
     }
 
+    /** Tests that Unicode plaintext survives encrypt/decrypt round-trip. */
     #[Test]
     public function handles_unicode_characters(): void
     {
@@ -92,6 +105,7 @@ class EncryptorTest extends TestCase
         $this->assertEquals($plaintext, $decrypted);
     }
 
+    /** Tests that very long strings round-trip without corruption. */
     #[Test]
     public function handles_long_strings(): void
     {
@@ -102,6 +116,7 @@ class EncryptorTest extends TestCase
         $this->assertEquals($plaintext, $decrypted);
     }
 
+    /** Tests that distinct keys produce independent ciphertexts but each decrypts correctly with its key. */
     #[Test]
     public function different_keys_produce_different_ciphertexts(): void
     {

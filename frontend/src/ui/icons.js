@@ -1,3 +1,17 @@
+/**
+ * SVG icon library.
+ *
+ * Each icon is an inline SVG string using Lucide-style stroked paths.
+ * Used throughout the UI for buttons, inputs, and status indicators.
+ */
+
+/**
+ * Generate an SVG icon string with the given path data.
+ *
+ * @param {string} d     SVG path/shape elements as inner HTML
+ * @param {number} size  Icon dimensions in pixels (default: 16)
+ * @returns {string}     Complete SVG markup string
+ */
 const icon = (d, size = 16) =>
   `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
 

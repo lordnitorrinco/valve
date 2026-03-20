@@ -1,6 +1,19 @@
+# Docker Compose orchestration for the Evolve Academy admission form.
+#
+# Architecture:
+#   Browser → Nginx (gateway) → Frontend (static) | Backend (PHP-FPM) → MySQL
+#
+# All containers run with security hardening:
+#   - read_only filesystems (where possible)
+#   - dropped Linux capabilities (cap_drop: ALL)
+#   - no-new-privileges security option
+#   - memory and CPU limits
+
 services:
 
-  # ── Base de datos ──────────────────────────────────────────
+  # ── MySQL 8.0 database ─────────────────────────────────────
+  # Stores submissions (with encrypted PII) and rate limit records.
+  # Port 3306 is NOT exposed to the host — only accessible internally.
   db:
     image: mysql:8.0
     restart: unless-stopped
@@ -11,7 +24,7 @@ services:
       MYSQL_PASSWORD:      ${DB_PASSWORD}
     volumes:
       - db_data:/var/lib/mysql
-      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro  # Schema + permissions
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 5s
@@ -22,7 +35,9 @@ services:
     mem_limit: 512m
     cpus: 1.0
 
-  # ── API backend (PHP-FPM) ─────────────────────────────────
+  # ── PHP-FPM API backend ────────────────────────────────────
+  # Handles /api/* requests via FastCGI. Read-only filesystem
+  # with tmpfs for writable directories (logs, temp, pid files).
   backend:
     build: ./backend
     restart: unless-stopped
@@ -39,28 +54,30 @@ services:
       FORWARD_WEBHOOK_ENABLED:   ${FORWARD_WEBHOOK_ENABLED}
       FORWARD_WEBHOOK_URL:       ${FORWARD_WEBHOOK_URL}
     volumes:
-      - uploads:/var/www/uploads
+      - uploads:/var/www/uploads  # Persistent CV file storage
     depends_on:
       db:
         condition: service_healthy
-    read_only: true
+    read_only: true                # Immutable filesystem
     tmpfs:
-      - /tmp:size=64M
-      - /var/run:size=1M
-      - /var/log:size=16M
+      - /tmp:size=64M              # PHP temp files
+      - /var/run:size=1M           # PID files
+      - /var/log:size=16M          # Error logs
     security_opt:
       - no-new-privileges:true
     cap_drop:
-      - ALL
+      - ALL                        # Drop all Linux capabilities
     cap_add:
-      - CHOWN
+      - CHOWN                      # Required by PHP-FPM
       - SETGID
       - SETUID
       - DAC_OVERRIDE
     mem_limit: 256m
     cpus: 0.5
 
-  # ── Frontend (Nginx estático) ─────────────────────────────
+  # ── Frontend static server (internal Nginx) ────────────────
+  # Serves HTML/CSS/JS. Not directly exposed — the gateway
+  # Nginx reverse proxy forwards requests here.
   frontend:
     build: ./frontend
     restart: unless-stopped
@@ -78,16 +95,18 @@ services:
       - CHOWN
       - SETGID
       - SETUID
-      - NET_BIND_SERVICE
+      - NET_BIND_SERVICE            # Required to bind port 80
     mem_limit: 128m
     cpus: 0.25
 
-  # ── phpMyAdmin (solo desarrollo / evaluación) ────────────
+  # ── phpMyAdmin (development / evaluation only) ─────────────
+  # Provides a web UI to inspect the database contents.
+  # Connects internally to MySQL — does not expose the DB port.
   phpmyadmin:
     image: phpmyadmin:5
     restart: unless-stopped
     ports:
-      - "${PMA_PORT:-8081}:80"
+      - "${PMA_PORT:-8081}:80"      # Accessible at localhost:8081
     environment:
       PMA_HOST: db
       PMA_USER: root
@@ -100,7 +119,11 @@ services:
     mem_limit: 128m
     cpus: 0.25
 
-  # ── Reverse proxy (Nginx gateway) ────────────────────────
+  # ── Nginx gateway (reverse proxy) ─────────────────────────
+  # Single entry point for all external traffic:
+  #   - Port 80:   API requests → backend (FastCGI)
+  #   - Port 8080: Frontend requests → frontend container
+  # Applies rate limiting, security headers, and bot blocking.
   nginx:
     build: ./nginx
     restart: unless-stopped
@@ -128,6 +151,7 @@ services:
     mem_limit: 128m
     cpus: 0.25
 
+# Named volumes for persistent data
 volumes:
-  db_data:
-  uploads:
+  db_data:    # MySQL data directory
+  uploads:    # Uploaded CV files

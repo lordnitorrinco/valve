@@ -3,6 +3,10 @@
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\Test;
 
+/**
+ * Unit tests for Database (PDO singleton wrapper).
+ * Verifies connection failure on bad credentials and reuse of a pre-set instance.
+ */
 class DatabaseTest extends TestCase
 {
     protected function setUp(): void
@@ -13,6 +17,7 @@ class DatabaseTest extends TestCase
         $prop->setValue(null, null);
     }
 
+    /** Tests that connect throws PDOException when credentials cannot open the database. */
     #[Test]
     public function connect_throws_on_invalid_config(): void
     {
@@ -27,6 +32,7 @@ class DatabaseTest extends TestCase
         ], 1);
     }
 
+    /** Tests that connect returns the existing singleton when instance is already injected. */
     #[Test]
     public function connect_returns_singleton(): void
     {

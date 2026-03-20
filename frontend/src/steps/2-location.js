@@ -1,3 +1,11 @@
+/**
+ * Step 2 — Location and availability.
+ *
+ * Collects: country of residence, nationality (with conditional
+ * "other" sub-fields for specific nationality and work permit),
+ * relocation willingness, date of birth.
+ */
+
 import { registerView, goTo } from '../framework/router.js';
 import { state } from '../framework/store.js';
 import { COUNTRIES } from '../data/options.js';
@@ -25,6 +33,7 @@ registerView('personal2', function renderLocation() {
     COUNTRIES.map(x => ({ value: x, label: x })), 'Selecciona un país'
   ));
 
+  // Conditional fields shown when nationality is "otro" (other)
   const natSlot = conditionalSlot(true);
 
   function renderNatFields() {

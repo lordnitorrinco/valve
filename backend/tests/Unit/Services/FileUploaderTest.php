@@ -3,6 +3,10 @@
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\Test;
 
+/**
+ * Unit tests for FileUploader.
+ * Covers size limits, extensions, upload errors, magic-byte verification, and filename conventions.
+ */
 class FileUploaderTest extends TestCase
 {
     private string $tmpDir;
@@ -43,6 +47,7 @@ class FileUploaderTest extends TestCase
         return $path;
     }
 
+    /** Tests that files larger than max_size throw before persisting. */
     #[Test]
     public function rejects_file_exceeding_max_size(): void
     {
@@ -64,6 +69,7 @@ class FileUploaderTest extends TestCase
         }
     }
 
+    /** Tests that disallowed extensions are rejected with a clear message. */
     #[Test]
     public function rejects_disallowed_file_extension(): void
     {
@@ -85,6 +91,7 @@ class FileUploaderTest extends TestCase
         }
     }
 
+    /** Tests that UPLOAD_ERR_NO_FILE yields null without throwing. */
     #[Test]
     public function returns_null_on_upload_error(): void
     {
@@ -99,6 +106,7 @@ class FileUploaderTest extends TestCase
         $this->assertNull($result);
     }
 
+    /** Tests that declared extension must match file magic bytes (e.g. fake PDF). */
     #[Test]
     public function rejects_file_with_mismatched_magic_bytes(): void
     {
@@ -120,6 +128,7 @@ class FileUploaderTest extends TestCase
         }
     }
 
+    /** Tests that PDF magic bytes pass content check; failure is then from move_uploaded_file in CLI. */
     #[Test]
     public function pdf_with_correct_magic_bytes_passes_verification(): void
     {
@@ -144,6 +153,7 @@ class FileUploaderTest extends TestCase
         }
     }
 
+    /** Tests that DOCX extension requires ZIP magic bytes; wrong content is rejected. */
     #[Test]
     public function docx_with_wrong_magic_bytes_is_rejected(): void
     {
@@ -165,6 +175,7 @@ class FileUploaderTest extends TestCase
         }
     }
 
+    /** Tests that random_bytes-based filenames are 32 hex characters (implementation contract). */
     #[Test]
     public function generated_filename_is_32_char_hex(): void
     {
@@ -173,6 +184,7 @@ class FileUploaderTest extends TestCase
         $this->assertMatchesRegularExpression('/^[a-f0-9]{32}$/', $randomHex);
     }
 
+    /** Tests that allowed_extensions config restricts types; txt allowed hits move failure, pdf denied by extension. */
     #[Test]
     public function allowed_extensions_are_enforced(): void
     {

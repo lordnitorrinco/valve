@@ -1,12 +1,32 @@
 <?php
 
+/**
+ * Handles admission form submissions.
+ *
+ * Orchestrates the full submission pipeline:
+ *  1. Sanitize input (strip HTML tags)
+ *  2. Validate against form rules
+ *  3. Upload CV file (if provided)
+ *  4. Encrypt PII fields (email, phone)
+ *  5. Save to database
+ *  6. Forward to external webhook (if enabled)
+ *  7. Return success response
+ */
 class SubmissionController
 {
     private PDO $db;
     private FileUploader $uploader;
     private Encryptor $encryptor;
+
+    /** @var array{enabled: bool, url: string} Webhook configuration */
     private array $webhookConfig;
 
+    /**
+     * @param PDO          $db             Database connection
+     * @param FileUploader $uploader       File upload handler
+     * @param Encryptor    $encryptor      PII encryption service
+     * @param array        $webhookConfig  Keys: enabled (bool), url (string)
+     */
     public function __construct(PDO $db, FileUploader $uploader, Encryptor $encryptor, array $webhookConfig)
     {
         $this->db             = $db;
@@ -15,24 +35,34 @@ class SubmissionController
         $this->webhookConfig  = $webhookConfig;
     }
 
+    /**
+     * Process a new admission submission.
+     *
+     * Called by the POST /api/submit route after all security checks
+     * (CSRF, content-type, origin, honeypot, rate limit) have passed.
+     */
     public function store(): void
     {
         $data = self::sanitizeInput();
 
+        // Validate all fields
         $errors = SubmissionValidator::validate($data);
         if (!empty($errors)) {
             Response::error('Validation failed', 422, ['fields' => $errors]);
         }
 
+        // Handle optional CV file upload
         $cvFilename = null;
         if (isset($_FILES['cv_file']) && $_FILES['cv_file']['error'] === UPLOAD_ERR_OK) {
             $cvFilename = $this->uploader->upload($_FILES['cv_file']);
         }
 
+        // Encrypt PII and persist
         $id = $this->save($data, $cvFilename);
 
         SecurityLogger::log('submission_saved', ['id' => $id]);
 
+        // Forward to external webhook if enabled (non-blocking)
         if ($this->webhookConfig['enabled'] && !empty($this->webhookConfig['url'])) {
             WebhookForwarder::forward($data, $this->webhookConfig['url']);
         }
@@ -43,6 +73,13 @@ class SubmissionController
         ]);
     }
 
+    /**
+     * Extract and sanitize all form fields from $_POST.
+     *
+     * Applies strip_tags() to prevent stored XSS.
+     *
+     * @return array<string, string> Sanitized field values
+     */
     private static function sanitizeInput(): array
     {
         $fields = [
@@ -61,8 +98,19 @@ class SubmissionController
         return $data;
     }
 
+    /**
+     * Insert the submission into the database.
+     *
+     * Encrypts email and phone before storage. Uses prepared statements
+     * to prevent SQL injection.
+     *
+     * @param  array       $data        Sanitized form data
+     * @param  string|null $cvFilename  Uploaded CV filename (or null)
+     * @return int                      Auto-generated submission ID
+     */
     private function save(array $data, ?string $cvFilename): int
     {
+        // Parse and validate date format
         $dateOfBirth = null;
         if (!empty($data['dateOfBirth'])) {
             $d = DateTime::createFromFormat('Y-m-d', $data['dateOfBirth']);

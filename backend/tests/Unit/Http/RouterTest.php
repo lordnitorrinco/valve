@@ -3,8 +3,13 @@
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\Test;
 
+/**
+ * Unit tests for the Router.
+ * Verifies GET/POST registration and coexistence of multiple routes via reflected route table.
+ */
 class RouterTest extends TestCase
 {
+    /** Tests that router->get stores the path under GET in the internal routes array. */
     #[Test]
     public function get_route_is_registered(): void
     {
@@ -24,6 +29,7 @@ class RouterTest extends TestCase
         $this->assertArrayHasKey('/test', $routes['GET']);
     }
 
+    /** Tests that router->post stores the path under POST in the internal routes array. */
     #[Test]
     public function post_route_is_registered(): void
     {
@@ -40,6 +46,7 @@ class RouterTest extends TestCase
         $this->assertArrayHasKey('/api/submit', $routes['POST']);
     }
 
+    /** Tests that multiple GET and POST routes can be registered without overwriting unrelated entries. */
     #[Test]
     public function multiple_routes_coexist(): void
     {

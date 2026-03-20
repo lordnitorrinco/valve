@@ -1,11 +1,27 @@
+/**
+ * Reusable form field components.
+ *
+ * Each function returns a complete field-group DOM element
+ * with label, input/select, error display, and two-way binding
+ * to the global state via input/change event handlers.
+ */
+
 import { state } from '../framework/store.js';
 import { PHONE_PREFIXES } from '../data/options.js';
 import { el, clearFieldError } from '../framework/createElement.js';
 import { SVG } from './icons.js';
 import { goTo } from '../framework/router.js';
 
+/**
+ * Handle text input changes — update state and clear field errors.
+ * Special handling for techYearsExperience (decimal number validation).
+ *
+ * @param {string} name   State field name
+ * @param {Event}  event  Input event
+ */
 function handleInput(name, event) {
   if (name === 'techYearsExperience') {
+    // Only allow numbers with max 1 decimal place
     if (event.target.value === '' || /^\d{0,2}(\.\d{0,1})?$/.test(event.target.value)) {
       state.formData[name] = event.target.value;
     } else {
@@ -17,16 +33,40 @@ function handleInput(name, event) {
   clearFieldError(name, event.target);
 }
 
+/**
+ * Create a "Back" navigation button.
+ *
+ * @param {string} target  View name to navigate back to
+ * @returns {HTMLElement}   Button element
+ */
 export function backButton(target) {
   return el('button', { className: 'btn-back', onClick: () => goTo(target) },
     el('span', { innerHTML: SVG.chevronLeft }), 'Atrás'
   );
 }
 
+/**
+ * Create a container for conditional fields that appear/disappear
+ * based on user selections (e.g. nationality "other" → extra fields).
+ *
+ * @param {boolean} compact  Use compact spacing
+ * @returns {HTMLElement}     Container div
+ */
 export function conditionalSlot(compact) {
   return el('div', { className: 'conditional-slot' + (compact ? ' compact' : '') });
 }
 
+/**
+ * Create a text input field with optional icon and autocomplete-off for PII.
+ *
+ * @param {string}  name         State field name
+ * @param {string}  label        Label text
+ * @param {string}  placeholder  Input placeholder
+ * @param {string}  type         Input type (default: "text")
+ * @param {string}  icon         SVG icon HTML (optional)
+ * @param {boolean} optional     Show "(optional)" label suffix
+ * @returns {HTMLElement}        Complete field group
+ */
 export function fieldInput(name, label, placeholder, type, icon, optional) {
   const group = el('div', { className: 'field-group' });
   group.dataset.field = name;
@@ -36,6 +76,7 @@ export function fieldInput(name, label, placeholder, type, icon, optional) {
   if (optional) lbl.appendChild(el('span', { className: 'optional' }, ' (opcional)'));
   group.appendChild(lbl);
 
+  // Disable autocomplete for sensitive fields to prevent data leakage
   const sensitive = ['email', 'phone', 'firstName', 'lastName'];
   const inputAttrs = {
     type: type || 'text',
@@ -59,6 +100,16 @@ export function fieldInput(name, label, placeholder, type, icon, optional) {
   return group;
 }
 
+/**
+ * Create a dropdown select field.
+ *
+ * @param {string}    name           State field name
+ * @param {string}    label          Label text
+ * @param {Array}     options        Array of { value, label } objects
+ * @param {string}    emptyLabel     Placeholder option text
+ * @param {Function}  onChangeExtra  Additional callback on selection change
+ * @returns {HTMLElement}            Complete field group
+ */
 export function fieldSelect(name, label, options, emptyLabel, onChangeExtra) {
   const group = el('div', { className: 'field-group' });
   group.dataset.field = name;
@@ -84,6 +135,13 @@ export function fieldSelect(name, label, options, emptyLabel, onChangeExtra) {
   return group;
 }
 
+/**
+ * Create a date picker field.
+ *
+ * @param {string} name   State field name
+ * @param {string} label  Label text
+ * @returns {HTMLElement}  Complete field group
+ */
 export function fieldDate(name, label) {
   const group = el('div', { className: 'field-group' });
   group.dataset.field = name;
@@ -93,7 +151,7 @@ export function fieldDate(name, label) {
     type: 'date',
     className: 'modern-input',
     value: state.formData[name] || '',
-    max: new Date().toISOString().split('T')[0],
+    max: new Date().toISOString().split('T')[0], // Cannot select future dates
     onChange: (e) => {
       state.formData[name] = e.target.value;
       clearFieldError(name, e.target);
@@ -103,6 +161,14 @@ export function fieldDate(name, label) {
   return group;
 }
 
+/**
+ * Create the phone number field with country code prefix selector.
+ *
+ * Includes a dropdown button showing the flag + code that opens
+ * a scrollable list of all available phone prefixes.
+ *
+ * @returns {HTMLElement} Complete phone field group
+ */
 export function fieldPhone() {
   const group = el('div', { className: 'field-group' });
   group.dataset.field = 'phone';
@@ -112,12 +178,14 @@ export function fieldPhone() {
   const prefixWrap = el('div', { className: 'phone-prefix-wrap' });
   const current = PHONE_PREFIXES.find(p => p.code === state.formData.phonePrefix) || PHONE_PREFIXES[0];
 
+  // Prefix selector button showing flag + code
   const prefixBtn = el('button', { type: 'button', className: 'phone-prefix-btn' });
   prefixBtn.appendChild(el('span', null, current.flag));
   prefixBtn.appendChild(el('span', { className: 'prefix-code' }, state.formData.phonePrefix));
 
   let dropdownOpen = false;
 
+  /** Toggle the prefix dropdown visibility and render options */
   function toggleDropdown() {
     const existing = prefixWrap.querySelector('.phone-prefix-dropdown');
     if (existing) existing.remove();
@@ -150,6 +218,8 @@ export function fieldPhone() {
     dropdownOpen = !dropdownOpen;
     toggleDropdown();
   });
+
+  // Close dropdown when clicking outside
   document.addEventListener('click', () => {
     if (dropdownOpen) { dropdownOpen = false; toggleDropdown(); }
   });
@@ -157,6 +227,7 @@ export function fieldPhone() {
   prefixWrap.appendChild(prefixBtn);
   row.appendChild(prefixWrap);
 
+  // Phone number input
   const phoneWrap = el('div', { className: 'phone-input-wrap' });
   phoneWrap.appendChild(el('span', { className: 'phone-input-icon', innerHTML: SVG.phone }));
   phoneWrap.appendChild(el('input', {
@@ -176,6 +247,17 @@ export function fieldPhone() {
   return group;
 }
 
+/**
+ * Create the CV file upload field with drag-and-drop style button.
+ *
+ * Shows either:
+ *  - An upload button (when no file selected)
+ *  - The selected filename with a remove button
+ *
+ * Enforces a 10 MB size limit and accepts PDF/DOC/DOCX files.
+ *
+ * @returns {HTMLElement} Complete file upload field group
+ */
 export function fieldFile() {
   const group = el('div', { className: 'field-group' });
   group.dataset.field = 'cvFile';
@@ -188,9 +270,11 @@ export function fieldFile() {
   const contentArea = el('div');
   group.appendChild(contentArea);
 
+  /** Re-render the file field UI based on current state */
   function updateUI() {
     contentArea.innerHTML = '';
     if (state.cvFile) {
+      // Show selected file with remove button
       const row = el('div', { className: 'file-selected' });
       const info = el('div', { className: 'file-selected-info' });
       info.appendChild(el('span', { innerHTML: SVG.fileIcon }));
@@ -202,6 +286,7 @@ export function fieldFile() {
       }));
       contentArea.appendChild(row);
     } else {
+      // Show upload button
       const btn = el('button', {
         type: 'button',
         className: 'file-upload-btn' + (state.errors.cvFile ? ' error' : ''),

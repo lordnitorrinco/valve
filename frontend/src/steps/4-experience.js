@@ -1,3 +1,11 @@
+/**
+ * Step 4 — Professional experience.
+ *
+ * Collects: employment situation, current job role (conditional),
+ * years of tech experience, LinkedIn URL (optional), CV file upload,
+ * willingness to complete training.
+ */
+
 import { registerView, goTo } from '../framework/router.js';
 import { state } from '../framework/store.js';
 import { SITUATIONS, NO_JOB_ROLE } from '../data/options.js';
@@ -21,6 +29,8 @@ registerView('experience', function renderExperience() {
   });
 
   const fields = el('div', { className: 'form-fields' });
+
+  // Job role field is only shown when the user is employed
   const sitSlot = conditionalSlot();
 
   function renderSitFields(val) {
