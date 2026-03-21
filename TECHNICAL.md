@@ -37,9 +37,10 @@ sandbox/
 │   │   │   ├── 3-education.js
 │   │   │   ├── 4-experience.js
 │   │   │   ├── 5-consent.js
-│   │   │   └── results.js        # success, rejected, killer
+│   │   │   ├── results.js        # success, rejected, killer
+│   │   │   └── admin.js          # panel /admin (GET /api/submissions)
 │   │   ├── services/          # Comunicación con el exterior
-│   │   │   ├── api.js             # submitForm() → POST /api/submit
+│   │   │   ├── api.js             # POST /api/submit + CSRF; el admin usa fetch directo
 │   │   │   └── validation.js      # Reglas de validación por paso
 │   │   └── data/              # Datos estáticos y configuración
 │   │       ├── options.js         # Países, niveles, constantes
@@ -147,7 +148,19 @@ Controllers/  →  Orquestar el flujo de negocio
 Services/     →  Interactuar con recursos externos (DB, filesystem, cifrado, webhook)
 ```
 
-### Flujo de una petición
+### Rutas HTTP (resumen)
+
+| Método | Ruta | Handler (resumen) |
+|--------|------|-------------------|
+| `GET` | `/api/csrf-token` | `Security::generateCsrf` → JSON |
+| `GET` | `/api/health` | `HealthController::check` → BBDD + disco |
+| `GET` | `/api/submissions` | `SubmissionController::list` → PII descifrada |
+| `GET` | `/api/submissions/{id}/cv` | `SubmissionController::downloadCv` → stream de fichero |
+| `POST` | `/api/submit` | `SubmissionController::store` → validación + INSERT + webhook opcional |
+
+Todas pasan por `public/index.php` (CORS, seguridad en POST, rate limit en POST, `Router::dispatch()`).
+
+### Flujo del envío del formulario (el más complejo)
 
 ```
 POST /api/submit
@@ -183,7 +196,7 @@ public/index.php
 | `Security` | Http | CSRF (HMAC), verificación de Origin, Content-Type, Honeypot |
 | `Validator` | Validation | Motor genérico (required, email, maxLength, pattern, url) |
 | `SubmissionValidator` | Validation | Reglas específicas con longitudes máximas y formatos |
-| `SubmissionController` | Controllers | Orquesta: sanitizar → validar → subir → cifrar → guardar → webhook |
+| `SubmissionController` | Controllers | `store` (POST submit), `list` y `downloadCv` (admin); cifrado PII + webhook opcional |
 | `HealthController` | Controllers | `GET /api/health`: comprobación de BBDD, PHP y espacio en uploads |
 | `Database` | Services | Conexión PDO singleton con reintentos |
 | `Encryptor` | Services | AES-256-CBC para cifrado de email y teléfono (GDPR) |

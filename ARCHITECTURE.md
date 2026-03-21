@@ -19,7 +19,8 @@ backend/
 │   └── app.php
 ├── app/
 │   ├── Controllers/
-│   │   └── SubmissionController.php
+│   │   ├── SubmissionController.php
+│   │   └── HealthController.php
 │   ├── Services/
 │   │   ├── Database.php
 │   │   └── FileUploader.php
@@ -194,7 +195,8 @@ frontend/src/
 │   ├── 3-education.js
 │   ├── 4-experience.js
 │   ├── 5-consent.js
-│   └── results.js
+│   ├── results.js
+│   └── admin.js              # panel /admin (listado + modal)
 ├── services/
 │   ├── api.js
 │   └── validation.js
@@ -236,22 +238,22 @@ Con solo ver `Controllers/`, `Services/`, `Validation/`, `Http/` se entiende inm
 **Por qué no las demás:**
 
 - **MVC (B)**: La carpeta `Views/` no tiene sentido real en una API JSON. Tener una carpeta vacía o con "responses" es confuso.
-- **Hexagonal (C)**: `Domain/`, `Application/`, `Infrastructure/` son conceptos potentes pero desproporcionados para un formulario con un solo endpoint. Parece que se está intentando impresionar con palabras en vez de con claridad.
-- **Feature-based (D)**: Con una sola feature (`submission`), tener `features/submission/` es una carpeta wrapper sin valor. Brilla cuando hay 10+ features, pero aquí solo añade profundidad innecesaria.
+- **Hexagonal (C)**: `Domain/`, `Application/`, `Infrastructure/` aportan mucho cuando hay reglas de negocio complejas y varios adaptadores intercambiables. Aquí la API es acotada: varias rutas (`/api/submit`, listado, descarga de CV, health, CSRF) pero comparten el mismo stack (PDO, validación, respuestas JSON) y un único agregado principal (la solicitud de admisión). Añadir tres capas nominales multiplicaría archivos e indirecciones sin ganar testabilidad ni claridad frente a la Opción A.
+- **Feature-based (D)**: El núcleo sigue siendo un solo contexto de negocio (**admisiones**). Las extensiones (lecturas para el panel admin, health, token CSRF) son delgadas y conviven con el mismo modelo de datos. Partir en `features/submission/`, `features/admin/`, `features/health/` dispersaría unas pocas clases en carpetas que no representan dominios independientes; compensa cuando hay muchos bounded contexts, no aquí.
 - **Flat + prefijos (E)**: Escala mal. Con 8 archivos funciona, con 20 se convierte en una lista ilegible donde hay que leer cada nombre para encontrar algo.
 
 ### Frontend: Opción 4 (Framework + Steps)
 
 **Lo que transmite a primera vista:**
 
-Los archivos `0-intro.js`, `1-contact.js`, `2-location.js`... cuentan la historia del formulario en orden. Cualquier persona sabe que es un flujo de pasos numerados sin abrir un solo archivo. La carpeta `framework/` separa claramente lo que es "infraestructura interna" de lo que es "lógica de negocio" en `steps/`.
+Los archivos `0-intro.js`, `1-contact.js`, `2-location.js`... cuentan la historia del formulario en orden. Además, `admin.js` añade una segunda superficie (panel de listado) sin mezclarla con el flujo por pasos. La carpeta `framework/` separa lo que es infraestructura interna de las vistas en `steps/`.
 
 **Por qué no las demás:**
 
 - **Flat modules (1)**: `personal.js`, `personal2.js`... no dice nada sobre el orden ni el propósito. ¿Qué es `personal2`? Hay que abrir el archivo para saber que es "ubicación".
 - **Atomic Design (2)**: `atoms/`, `molecules/`, `organisms/` son niveles de abstracción que requieren un framework de componentes real (React, Vue). En vanilla JS sin virtual DOM, crear un `Button.js` atómico es ceremonia sin beneficio.
-- **Feature folders (3)**: Cada feature tiene un solo archivo de vista y posiblemente uno de validación. Crear carpetas individuales (`personal/`, `education/`) para 1-2 archivos cada una es ruido visual.
-- **Monorepo packages (5)**: `packages/core/`, `packages/ui-kit/`... es infraestructura de un proyecto con múltiples aplicaciones. Para un solo formulario, es como construir un aeropuerto para un avión de papel.
+- **Feature folders (3)**: Cada paso del formulario encaja en un archivo bajo `steps/`; el panel (`admin.js`) es una vista extra pero sigue siendo una pieza. Partir cada paso en `features/personal/`, `features/education/`… con 1–2 archivos por carpeta añade ruido sin bounded contexts claros.
+- **Monorepo packages (5)**: `packages/core/`, `packages/ui-kit/`… encajan en repos con varias apps o equipos. Para una SPA de admisión (formulario + panel), es infraestructura desproporcionada.
 
 ---
 
@@ -265,7 +267,7 @@ Las opciones elegidas no son las más sofisticadas ni las más simples. Son las 
 
 ## Observabilidad y entrega
 
-El diseño anterior cubre el **dominio** (formulario, API, seguridad). Encima se añadieron piezas de **operación** sin mezclarlas con la lógica de negocio:
+El diseño anterior cubre el **dominio** (formulario multi-paso, API REST, panel de solicitudes, seguridad). Encima se añadieron piezas de **operación** sin mezclarlas con la lógica de negocio:
 
 | Pieza | Rol |
 |-------|-----|
