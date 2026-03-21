@@ -51,20 +51,39 @@ const FIELD_LABELS = {
 
 /**
  * Build and display the detail modal for a submission.
+ * Implements focus trap, Escape to close, ARIA dialog pattern, and restores focus on close.
  */
 function showDetail(s) {
-  // Backdrop
-  const backdrop = el('div', { className: 'modal-backdrop' });
-  const modal = el('div', { className: 'modal' });
+  const previousFocus = document.activeElement;
 
-  // Close button
-  const closeBtn = el('button', { className: 'modal-close', onClick: () => backdrop.remove() });
+  const backdrop = el('div', { className: 'modal-backdrop' });
+  const modal = el('div', {
+    className: 'modal',
+    role: 'dialog',
+    'aria-modal': 'true',
+    'aria-labelledby': 'modal-detail-title',
+  });
+
+  function closeModal() {
+    backdrop.remove();
+    document.removeEventListener('keydown', onDocKey);
+    modal.removeEventListener('keydown', onTrapKey);
+    if (previousFocus && typeof previousFocus.focus === 'function') {
+      previousFocus.focus();
+    }
+  }
+
+  const closeBtn = el('button', {
+    className: 'modal-close',
+    type: 'button',
+    'aria-label': 'Cerrar detalle',
+    onClick: closeModal,
+  });
   closeBtn.innerHTML = SVG.x;
   modal.appendChild(closeBtn);
 
-  // Header
   const header = el('div', { className: 'modal-header' });
-  header.appendChild(el('h2', null, `${s.first_name} ${s.last_name}`));
+  header.appendChild(el('h2', { id: 'modal-detail-title' }, `${s.first_name} ${s.last_name}`));
   header.appendChild(el('span', { className: 'modal-date' }, formatDate(s.created_at)));
   modal.appendChild(header);
 
@@ -105,16 +124,35 @@ function showDetail(s) {
   backdrop.appendChild(modal);
   document.body.appendChild(backdrop);
 
-  // Close on backdrop click
   backdrop.addEventListener('click', (e) => {
-    if (e.target === backdrop) backdrop.remove();
+    if (e.target === backdrop) closeModal();
   });
 
-  // Close on Escape
-  const onKey = (e) => {
-    if (e.key === 'Escape') { backdrop.remove(); document.removeEventListener('keydown', onKey); }
-  };
-  document.addEventListener('keydown', onKey);
+  function onDocKey(e) {
+    if (e.key === 'Escape') closeModal();
+  }
+
+  function onTrapKey(e) {
+    if (e.key !== 'Tab') return;
+    const focusables = modal.querySelectorAll(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    const list = [...focusables].filter(node => !node.hasAttribute('disabled'));
+    if (list.length === 0) return;
+    const first = list[0];
+    const last = list[list.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }
+
+  document.addEventListener('keydown', onDocKey);
+  modal.addEventListener('keydown', onTrapKey);
+  closeBtn.focus();
 }
 
 registerView('admin', function renderAdmin() {
@@ -172,7 +210,22 @@ registerView('admin', function renderAdmin() {
 
       const tbody = el('tbody');
       submissions.forEach(s => {
-        const row = el('tr', { onClick: () => showDetail(s) });
+        function openRow() {
+          showDetail(s);
+        }
+        const row = el('tr', {
+          className: 'admin-table-row',
+          tabindex: '0',
+          role: 'button',
+          'aria-label': `Ver detalle de ${s.first_name} ${s.last_name}`,
+          onClick: openRow,
+          onKeyDown: (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              openRow();
+            }
+          },
+        });
         row.appendChild(el('td', { className: 'name-cell' }, `${s.first_name} ${s.last_name}`));
         row.appendChild(el('td', { className: 'date-cell' }, formatDate(s.created_at)));
         tbody.appendChild(row);

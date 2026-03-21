@@ -1,0 +1,46 @@
+# Continuous integration: unit tests in Docker + full stack integration on Ubuntu runner.
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  unit-backend:
+    name: Backend (PHPUnit + coverage)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build test image
+        run: docker build -t evolve-backend-test -f backend/Dockerfile.test backend/
+      - name: Run PHPUnit
+        run: docker run --rm evolve-backend-test
+
+  unit-frontend:
+    name: Frontend (Vitest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build test image
+        run: docker build -t evolve-frontend-test -f frontend/Dockerfile.test frontend/
+      - name: Run Vitest
+        run: docker run --rm evolve-frontend-test
+
+  integration:
+    name: Integration (curl + Compose)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create .env for CI
+        run: cp .env.example .env
+      - name: Start stack
+        run: docker compose up -d --build
+      - name: Wait for services
+        run: sleep 15
+      - name: Run integration tests
+        run: bash tests/integration.sh
+      - name: Stop stack
+        if: always()
+        run: docker compose down -v

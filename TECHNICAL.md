@@ -5,9 +5,13 @@
 ```
 sandbox/
 ├── docker-compose.yml         # Orquestación de los 4 contenedores
+├── Makefile                   # Atajos: up, test, seed, logs, clean
 ├── .env                       # Variables de entorno (no en git)
 ├── .env.example               # Plantilla de variables
 ├── .gitignore
+├── run-tests.sh               # Suite completa (backend + frontend + integración)
+├── scripts/seed.php           # Datos de demo (vía `make seed`)
+├── .github/workflows/ci.yml   # CI en GitHub Actions
 ├── ARCHITECTURE.md            # Opciones de arquitectura evaluadas
 ├── SECURITY.md                # 44 medidas de seguridad documentadas
 │
@@ -52,7 +56,8 @@ sandbox/
 │   │   └── app.php                # Config desde variables de entorno
 │   └── app/
 │       ├── Controllers/
-│       │   └── SubmissionController.php
+│       │   ├── SubmissionController.php
+│       │   └── HealthController.php
 │       ├── Services/
 │       │   ├── Database.php           # Conexión PDO singleton con retry
 │       │   ├── Encryptor.php          # AES-256-CBC para cifrado de PII
@@ -179,6 +184,7 @@ public/index.php
 | `Validator` | Validation | Motor genérico (required, email, maxLength, pattern, url) |
 | `SubmissionValidator` | Validation | Reglas específicas con longitudes máximas y formatos |
 | `SubmissionController` | Controllers | Orquesta: sanitizar → validar → subir → cifrar → guardar → webhook |
+| `HealthController` | Controllers | `GET /api/health`: comprobación de BBDD, PHP y espacio en uploads |
 | `Database` | Services | Conexión PDO singleton con reintentos |
 | `Encryptor` | Services | AES-256-CBC para cifrado de email y teléfono (GDPR) |
 | `FileUploader` | Services | Subir CV con validación de tipo, tamaño y magic bytes |
@@ -194,8 +200,9 @@ El contenedor `nginx` actúa como **reverse proxy**:
 - **Puerto 8080**: Expone el frontend. Las peticiones `/api/*` van al backend, el resto se proxean al contenedor `frontend`.
 
 Incluye:
-- Compresión gzip para assets
+- Compresión gzip para JSON (API) y para assets del frontend
 - Headers de seguridad (`X-Content-Type-Options`, `X-Frame-Options`)
+- `X-Request-ID` en respuestas y reenvío a PHP vía FastCGI
 - Límite de upload a 15MB
 
 ## Seguridad
@@ -211,3 +218,26 @@ MySQL 8.0 con charset `utf8mb4`. Dos tablas:
 - `rate_limits`: control de frecuencia por IP, índice compuesto `(ip_address, attempted_at)`
 
 El usuario de la app tiene permisos mínimos: solo `INSERT`/`SELECT` en submissions y `INSERT`/`SELECT`/`DELETE` en rate_limits.
+
+## Makefile, CI y scripts operativos
+
+| Ruta | Uso |
+|------|-----|
+| `Makefile` | `make up`, `make test`, `make seed`, `make logs`, `make clean` |
+| `.github/workflows/ci.yml` | CI en GitHub: tests backend, frontend e integración con Docker Compose |
+| `scripts/seed.php` | Datos de demostración; invocado con `make seed` (montaje de solo lectura en el contenedor backend) |
+
+## Observabilidad
+
+| Pieza | Ubicación |
+|-------|-----------|
+| `GET /api/health` | `app/Controllers/HealthController.php` — sin PII |
+| Tiempo de petición | `Response::timingHeader()` + `$GLOBALS['request_start']` en `public/index.php` |
+| ID de correlación | Nginx `$request_id` → PHP `HTTP_X_REQUEST_ID` → campo `request_id` en `SecurityLogger` |
+| CORS expone headers | `Access-Control-Expose-Headers: X-Request-ID, X-Response-Time` en `Response::cors()` |
+
+## Accesibilidad (frontend)
+
+- `index.html`: enlace *Saltar al contenido*, `<main id="main-content" tabindex="-1">`.
+- `router.js`: foco en `#main-content` tras cada cambio de vista.
+- `steps/admin.js`: modal con `role="dialog"`, `aria-labelledby`, foco inicial en cerrar, captura de Tab; filas de tabla con `role="button"` y activación con Enter/Espacio.

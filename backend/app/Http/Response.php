@@ -20,7 +20,21 @@ class Response
         header('Access-Control-Allow-Origin: ' . $allowedOrigin);
         header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
         header('Access-Control-Allow-Headers: Content-Type, X-CSRF-Token');
+        header('Access-Control-Expose-Headers: X-Request-ID, X-Response-Time');
         header('Access-Control-Max-Age: 86400');
+    }
+
+    /**
+     * Append X-Response-Time header (wall time since request start).
+     * Called before halting responses so clients and proxies can measure latency.
+     */
+    public static function timingHeader(): void
+    {
+        if (!isset($GLOBALS['request_start'])) {
+            return;
+        }
+        $seconds = microtime(true) - $GLOBALS['request_start'];
+        header('X-Response-Time: ' . sprintf('%.3f', $seconds));
     }
 
     /**
@@ -31,6 +45,7 @@ class Response
      */
     public static function json(array $data, int $status = 200): never
     {
+        self::timingHeader();
         http_response_code($status);
         throw new HaltException($status, json_encode($data));
     }
@@ -56,6 +71,7 @@ class Response
     /** Send a 204 No Content response (used for OPTIONS preflight). */
     public static function noContent(): never
     {
+        self::timingHeader();
         http_response_code(204);
         throw new HaltException(204);
     }

@@ -7,12 +7,13 @@ Este documento detalla las 44 medidas de seguridad implementadas, organizadas po
 ## Nginx (Gateway) — 8 medidas
 
 ### 1. Rate limiting
-Limita peticiones por IP: 30 req/min para `/api/*` y 60 req/min para assets. Previene brute force, DDoS básico y abuso del endpoint de envío.
+Limita peticiones por IP: **120 req/min** para `/api/*` (con burst) y **60 req/min** para el proxy de assets. El exceso devuelve **HTTP 429** (`limit_req_status 429`), no 503, para distinguir rate limit de errores reales del upstream.
 
 **Archivo:** `nginx/default.conf`
 ```nginx
-limit_req_zone $binary_remote_addr zone=api_limit:10m rate=30r/m;
-limit_req zone=api_limit burst=5 nodelay;
+limit_req_zone $binary_remote_addr zone=api_limit:10m rate=120r/m;
+limit_req_status 429;
+limit_req zone=api_limit burst=10 nodelay;
 ```
 
 ### 2. Headers de seguridad completos
@@ -311,6 +312,19 @@ Controlado por variables de entorno:
 El reenvío es **no bloqueante**: si el webhook falla, la solicitud se guarda igualmente en MySQL y el error se registra en el log de seguridad.
 
 **Archivo:** `app/Services/WebhookForwarder.php`
+
+---
+
+## Observabilidad y trazabilidad (complementarias)
+
+No sustituyen las medidas anteriores; refuerzan operación en producción.
+
+| Tema | Qué hace |
+|------|----------|
+| **`X-Request-ID`** | Nginx genera un ID por petición, lo reenvía a PHP (`fastcgi_param HTTP_X_REQUEST_ID $request_id`) y lo expone en la respuesta. `SecurityLogger` incluye `request_id` en cada evento JSON. |
+| **`X-Response-Time`** | El backend mide tiempo de proceso y lo expone en el header (útil para SLOs y depuración). |
+| **`GET /api/health`** | Comprueba BBDD (`SELECT 1`), versión de PHP y espacio libre en el volumen de uploads — sin PII. |
+| **Compresión y caché** | Gzip para JSON en el gateway API; en el contenedor frontend, gzip + `ETag` + `Cache-Control` para CSS/JS/SVG. |
 
 ---
 

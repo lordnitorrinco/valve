@@ -260,3 +260,16 @@ Los archivos `0-intro.js`, `1-contact.js`, `2-location.js`... cuentan la histori
 > La mejor arquitectura es la que hace que la siguiente persona que abra el proyecto piense "tiene sentido" en los primeros 5 segundos.
 
 Las opciones elegidas no son las más sofisticadas ni las más simples. Son las que mejor equilibran **claridad inmediata**, **separación de responsabilidades** y **proporcionalidad al tamaño del proyecto**.
+
+---
+
+## Observabilidad y entrega
+
+El diseño anterior cubre el **dominio** (formulario, API, seguridad). Encima se añadieron piezas de **operación** sin mezclarlas con la lógica de negocio:
+
+| Pieza | Rol |
+|-------|-----|
+| `GET /api/health` | Contrato estable para balanceadores y orquestadores (BBDD + PHP + disco). |
+| `X-Request-ID` / logs JSON | Correlación Nginx ↔ PHP para auditoría y soporte. |
+| `Makefile` + CI | Misma experiencia en local y en GitHub Actions. |
+| Accesibilidad (skip link, foco, modal) | Calidad de producto sin cambiar la arquitectura por capas. |

@@ -82,6 +82,8 @@ echo -e "\n${YELLOW}═══ Frontend ═══${NC}"
 response=$(curl -s "$FRONTEND")
 assert "Frontend sirve HTML" "<!DOCTYPE html>" "$response"
 assert "Frontend contiene app div" 'id="app"' "$response"
+assert "Frontend tiene skip link (a11y)" "skip-link" "$response"
+assert "Frontend tiene landmark main" "main-content" "$response"
 assert "Frontend carga app.js" "src=\"/src/app.js\"" "$response"
 
 assert_status "Frontend devuelve 200" "200" "$FRONTEND"
@@ -105,6 +107,19 @@ sleep 0.5
 api_headers=$(curl -s -D - -o /dev/null "$API/api/csrf-token")
 assert "API CORS header present" "Access-Control-Allow-Origin" "$api_headers"
 assert "API allows CSRF header" "X-CSRF-Token" "$api_headers"
+
+sleep 0.5
+
+# ── Observability (health + correlation + timing) ─────────────
+echo -e "\n${YELLOW}═══ Observability ═══${NC}"
+
+health_body=$(curl -s "$API/api/health" 2>/dev/null) || true
+assert "Health endpoint returns healthy" "healthy" "$health_body"
+assert "Health includes database check" "database" "$health_body"
+
+health_hdr=$(curl -s -D - -o /dev/null "$API/api/health" 2>/dev/null) || true
+assert "API exposes X-Request-ID" "X-Request-ID" "$health_hdr"
+assert "API exposes X-Response-Time" "X-Response-Time" "$health_hdr"
 
 sleep 1
 

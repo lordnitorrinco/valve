@@ -17,11 +17,17 @@ class SecurityLogger
      */
     public static function log(string $event, array $context = []): void
     {
+        $rid = $_SERVER['HTTP_X_REQUEST_ID'] ?? '';
+        if ($rid === '') {
+            $rid = 'gen-' . bin2hex(random_bytes(8));
+        }
+
         $entry = json_encode(array_merge([
-            'event' => $event,
-            'ip'    => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
-            'ua'    => substr($_SERVER['HTTP_USER_AGENT'] ?? 'unknown', 0, 200), // Truncate to prevent log injection
-            'time'  => date('c'),
+            'event'       => $event,
+            'request_id'  => $rid,
+            'ip'          => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+            'ua'          => substr($_SERVER['HTTP_USER_AGENT'] ?? 'unknown', 0, 200), // Truncate to prevent log injection
+            'time'        => date('c'),
         ], $context), JSON_UNESCAPED_UNICODE);
 
         error_log("[SECURITY] $entry");

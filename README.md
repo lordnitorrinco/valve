@@ -2,6 +2,27 @@
 
 Réplica del formulario multi-paso de admisión de [admision.evolve.es](https://admision.evolve.es), con backend PHP y base de datos MySQL, todo orquestado con Docker Compose.
 
+## Inicio rápido
+
+```bash
+git clone <repo-url> && cd sandbox
+cp .env.example .env
+make up          # o: docker compose up -d --build
+open http://localhost:8080
+```
+
+Comandos útiles (`Makefile`):
+
+| Comando | Descripción |
+|--------|-------------|
+| `make up` | Levanta y reconstruye el stack |
+| `make down` | Para contenedores |
+| `make logs` | Logs en tiempo real |
+| `make test` | Suite completa (backend + frontend + integración) |
+| `make test-backend` / `make test-frontend` / `make test-integration` | Solo una capa |
+| `make seed` | Inserta 30 solicitudes de demo + PDFs mock (requiere stack arriba) |
+| `make clean` | `docker compose down -v` (borra BBDD y uploads) |
+
 ## Arquitectura
 
 ```
@@ -38,22 +59,6 @@ Réplica del formulario multi-paso de admisión de [admision.evolve.es](https://
 | `phpmyadmin` | Panel de administración de MySQL | `:8081` |
 | `db`       | MySQL 8.0 | interno (no expuesto) |
 
-## Inicio rápido
-
-```bash
-# 1. Clonar el proyecto
-git clone <repo-url> && cd evolve-form
-
-# 2. Configurar variables de entorno
-cp .env.example .env
-
-# 3. Levantar todo
-docker compose up -d
-
-# 4. Abrir en el navegador
-open http://localhost:8080
-```
-
 ## Variables de entorno
 
 | Variable | Descripción | Default |
@@ -78,60 +83,68 @@ open http://localhost:8080
 | Método | URL | Descripción |
 |--------|-----|-------------|
 | `GET`  | `/api/csrf-token` | Genera un token CSRF |
+| `GET`  | `/api/health` | Estado del servicio (BBDD, PHP, espacio en volumen de uploads) |
 | `POST` | `/api/submit` | Envía una solicitud de admisión |
 | `GET`  | `/api/submissions` | Lista todas las solicitudes (PII descifrada) |
 | `GET`  | `/api/submissions/{id}/cv` | Descarga el CV de una solicitud |
 
+### Observabilidad
+
+- **`X-Request-ID`**: el gateway Nginx genera un ID por petición, lo reenvía a PHP (`HTTP_X_REQUEST_ID`) y lo incluye en respuestas y en logs JSON (`SecurityLogger`).
+- **`X-Response-Time`**: tiempo de proceso en el backend (segundos, 3 decimales).
+- **`Access-Control-Expose-Headers`**: permite leer esos headers desde JavaScript en el origen permitido.
+
 ## Panel de administración
 
-Accesible en [`http://localhost:8080/admin`](http://localhost:8080/admin).
+[`http://localhost:8080/admin`](http://localhost:8080/admin) — listado de solicitudes, modal con detalle (focus trap, teclado, ARIA), descarga de CV.
 
-Muestra un listado de todas las solicitudes. Al hacer click en una fila se abre un popup con todos los datos del candidato y un botón para descargar su CV.
+## Accesibilidad (frontend)
+
+- Enlace **Saltar al contenido** (WCAG 2.4.1).
+- Landmark `<main id="main-content">` y foco programático al cambiar de paso.
+- Modal del admin: `role="dialog"`, `aria-modal`, captura de foco (Tab), filas de tabla activables con Enter/Espacio.
+
+## CI / GitHub Actions
+
+El workflow `.github/workflows/ci.yml` ejecuta en cada push/PR:
+
+1. Tests unitarios del backend (Docker + PHPUnit + cobertura).
+2. Tests unitarios del frontend (Docker + Vitest).
+3. Stack completo con Docker Compose + `tests/integration.sh`.
 
 ## Tests
 
-La suite de tests se ejecuta completamente en Docker (no necesitas PHP ni Node.js instalados):
-
 ```bash
-# Ejecutar todos los tests (backend + frontend + integración)
-bash run-tests.sh
+make test        # o: bash run-tests.sh
 ```
 
-### Estructura de tests
-
-| Capa | Framework | Tests | Qué cubre |
+| Capa | Framework | Tests | Cobertura |
 |------|-----------|-------|-----------|
-| Backend | PHPUnit 11 | 71 | Validator, SubmissionValidator, Encryptor, Security (CSRF), Router, FileUploader, SecurityLogger, WebhookForwarder, Database |
-| Frontend | Vitest 3 | 59 | Store, validaciones (4 funciones), createElement, showErrors, options/data |
-| Integración | Shell/curl | 32 | Frontend, security headers, CSRF, API validation, honeypot, HTTP methods, route protection, CORS, admin API, phpMyAdmin |
+| Backend | PHPUnit 11 | 153 | 100% líneas (clases de `app/`) |
+| Frontend | Vitest 3 | 200 | 100% statements |
+| Integración | bash + curl | 38 comprobaciones | HTTP, seguridad, health, admin |
 
-### Ejecutar por separado
+### Por separado
 
 ```bash
-# Solo backend
-docker build -t evolve-backend-test -f backend/Dockerfile.test backend/
-docker run --rm evolve-backend-test
-
-# Solo frontend
-docker build -t evolve-frontend-test -f frontend/Dockerfile.test frontend/
-docker run --rm evolve-frontend-test
-
-# Solo integración (requiere docker compose up)
-bash tests/integration.sh
+make test-backend
+make test-frontend
+make test-integration   # requiere docker compose up
 ```
+
+## Documentación adicional
+
+| Archivo | Contenido |
+|---------|-----------|
+| `SECURITY.md` | Medidas de seguridad por capa |
+| `TECHNICAL.md` | Estructura del código y flujos |
+| `ARCHITECTURE.md` | Alternativas de arquitectura evaluadas |
 
 ## Desarrollo
 
 ```bash
-# Ver logs en tiempo real
 docker compose logs -f
-
-# Reconstruir tras cambios
 docker compose up -d --build
-
-# Parar todo
 docker compose down
-
-# Parar y eliminar volúmenes (reset completo)
-docker compose down -v
+docker compose down -v    # reset completo de volúmenes
 ```

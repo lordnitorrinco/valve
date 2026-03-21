@@ -6,6 +6,7 @@
  */
 require_once __DIR__ . '/../app/Http/HaltException.php';
 require_once __DIR__ . '/../app/Http/Response.php';
+require_once __DIR__ . '/../app/Controllers/HealthController.php';
 require_once __DIR__ . '/../app/Http/Router.php';
 require_once __DIR__ . '/../app/Http/Security.php';
 require_once __DIR__ . '/../app/Services/Database.php';

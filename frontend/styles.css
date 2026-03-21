@@ -26,6 +26,31 @@ body {
     line-height: 1.5;
     min-height: 100vh;
     overflow-x: hidden;
+    position: relative;
+}
+
+/* Skip link — visible on keyboard focus (WCAG 2.4.1) */
+.skip-link {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    z-index: 10000;
+    padding: 0.5rem 1rem;
+    background: var(--foreground);
+    color: var(--background);
+    font-weight: 600;
+    border-radius: 0.25rem;
+    text-decoration: none;
+}
+.skip-link:focus {
+    left: 0.75rem;
+    top: 0.75rem;
+    outline: 2px solid hsl(210 100% 45%);
+    outline-offset: 2px;
+}
+
+.app-main:focus {
+    outline: none;
 }
 
 #app {
@@ -644,6 +669,12 @@ select.modern-input {
 }
 
 .admin-table tbody tr:hover {
+    background: var(--muted);
+}
+
+.admin-table tbody tr.admin-table-row:focus-visible {
+    outline: 2px solid hsl(210 100% 45%);
+    outline-offset: -2px;
     background: var(--muted);
 }
 

@@ -17,6 +17,7 @@ class SecurityLoggerTest extends TestCase
         ini_set('error_log', $this->logFile);
         $_SERVER['REMOTE_ADDR'] = '192.168.1.1';
         $_SERVER['HTTP_USER_AGENT'] = 'TestBrowser/1.0';
+        $_SERVER['HTTP_X_REQUEST_ID'] = 'test-request-id-abc';
     }
 
     protected function tearDown(): void
@@ -34,6 +35,7 @@ class SecurityLoggerTest extends TestCase
         $content = file_get_contents($this->logFile);
         $this->assertStringContainsString('[SECURITY]', $content);
         $this->assertStringContainsString('"event":"test_event"', $content);
+        $this->assertStringContainsString('"request_id":"test-request-id-abc"', $content);
         $this->assertStringContainsString('"ip":"192.168.1.1"', $content);
         $this->assertStringContainsString('"extra_key":"extra_value"', $content);
         $this->assertStringContainsString('TestBrowser', $content);
@@ -89,5 +91,17 @@ class SecurityLoggerTest extends TestCase
 
         $content = file_get_contents($this->logFile);
         $this->assertStringContainsString('García Ñoño', $content);
+    }
+
+    /** Tests that a synthetic request_id is logged when the gateway did not set one (e.g. CLI). */
+    #[Test]
+    public function log_generates_request_id_when_header_absent(): void
+    {
+        unset($_SERVER['HTTP_X_REQUEST_ID']);
+
+        SecurityLogger::log('rid_gen_test');
+
+        $content = file_get_contents($this->logFile);
+        $this->assertStringContainsString('"request_id":"gen-', $content);
     }
 }

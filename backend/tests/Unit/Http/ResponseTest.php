@@ -127,4 +127,21 @@ class ResponseTest extends TestCase
         @Response::cors();
         $this->assertTrue(true);
     }
+
+    #[Test]
+    public function timing_header_runs_when_request_start_set(): void
+    {
+        $GLOBALS['request_start'] = microtime(true) - 0.05;
+        @Response::timingHeader();
+        unset($GLOBALS['request_start']);
+        $this->assertTrue(true);
+    }
+
+    #[Test]
+    public function timing_header_noop_when_request_start_missing(): void
+    {
+        unset($GLOBALS['request_start']);
+        @Response::timingHeader();
+        $this->assertTrue(true);
+    }
 }

@@ -80,6 +80,12 @@ export function goTo(view) {
       content.style.transform = 'translateX(20px)';
     }
     contentEl.appendChild(content);
+
+    const mainEl = document.getElementById('main-content');
+    if (mainEl && typeof mainEl.focus === 'function') {
+      mainEl.focus({ preventScroll: true });
+    }
+
     if (STEP_VIEWS.has(view)) {
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
