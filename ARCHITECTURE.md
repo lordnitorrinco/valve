@@ -112,70 +112,7 @@ backend/
 
 ## Frontend — 5 opciones
 
-### Opción 1 — Flat modules
-
-```
-frontend/src/
-├── app.js
-├── state.js
-├── router.js
-├── dom.js
-├── icons.js
-├── fields.js
-├── config.js
-├── api.js
-├── validation.js
-└── views/
-    ├── intro.js
-    ├── personal.js
-    ├── personal2.js
-    └── ...
-```
-
-### Opción 2 — Atomic Design
-
-```
-frontend/src/
-├── app.js
-├── atoms/
-│   ├── Button.js
-│   ├── Input.js
-│   └── Select.js
-├── molecules/
-│   ├── FieldGroup.js
-│   └── PhoneInput.js
-├── organisms/
-│   ├── PersonalForm.js
-│   └── ProgressBar.js
-├── pages/
-│   ├── IntroPage.js
-│   └── SuccessPage.js
-└── state/
-    └── store.js
-```
-
-### Opción 3 — Feature folders
-
-```
-frontend/src/
-├── app.js
-├── features/
-│   ├── intro/
-│   │   └── IntroView.js
-│   ├── personal/
-│   │   ├── PersonalView.js
-│   │   └── personalValidation.js
-│   ├── education/
-│   │   ├── EducationView.js
-│   │   └── educationValidation.js
-│   └── ...
-└── shared/
-    ├── router.js
-    ├── state.js
-    └── ui/
-```
-
-### Opción 4 — Framework + Steps ✅ ELEGIDA
+### Opción 1 — Framework + Steps ✅ ELEGIDA
 
 ```
 frontend/src/
@@ -203,6 +140,69 @@ frontend/src/
 └── data/
     ├── options.js
     └── partners.js
+```
+
+### Opción 2 — Flat modules
+
+```
+frontend/src/
+├── app.js
+├── state.js
+├── router.js
+├── dom.js
+├── icons.js
+├── fields.js
+├── config.js
+├── api.js
+├── validation.js
+└── views/
+    ├── intro.js
+    ├── personal.js
+    ├── personal2.js
+    └── ...
+```
+
+### Opción 3 — Atomic Design
+
+```
+frontend/src/
+├── app.js
+├── atoms/
+│   ├── Button.js
+│   ├── Input.js
+│   └── Select.js
+├── molecules/
+│   ├── FieldGroup.js
+│   └── PhoneInput.js
+├── organisms/
+│   ├── PersonalForm.js
+│   └── ProgressBar.js
+├── pages/
+│   ├── IntroPage.js
+│   └── SuccessPage.js
+└── state/
+    └── store.js
+```
+
+### Opción 4 — Feature folders
+
+```
+frontend/src/
+├── app.js
+├── features/
+│   ├── intro/
+│   │   └── IntroView.js
+│   ├── personal/
+│   │   ├── PersonalView.js
+│   │   └── personalValidation.js
+│   ├── education/
+│   │   ├── EducationView.js
+│   │   └── educationValidation.js
+│   └── ...
+└── shared/
+    ├── router.js
+    ├── state.js
+    └── ui/
 ```
 
 ### Opción 5 — Monorepo-style con packages
@@ -242,7 +242,7 @@ Con solo ver `Controllers/`, `Services/`, `Validation/`, `Http/` se entiende inm
 - **Feature-based (D)**: El núcleo sigue siendo un solo contexto de negocio (**admisiones**). Las extensiones (lecturas para el panel admin, health, token CSRF) son delgadas y conviven con el mismo modelo de datos. Partir en `features/submission/`, `features/admin/`, `features/health/` dispersaría unas pocas clases en carpetas que no representan dominios independientes; compensa cuando hay muchos bounded contexts, no aquí.
 - **Flat + prefijos (E)**: Escala mal. Con 8 archivos funciona, con 20 se convierte en una lista ilegible donde hay que leer cada nombre para encontrar algo.
 
-### Frontend: Opción 4 (Framework + Steps)
+### Frontend: Opción 1 (Framework + Steps)
 
 **Lo que transmite a primera vista:**
 
@@ -250,9 +250,9 @@ Los archivos `0-intro.js`, `1-contact.js`, `2-location.js`... cuentan la histori
 
 **Por qué no las demás:**
 
-- **Flat modules (1)**: `personal.js`, `personal2.js`... no dice nada sobre el orden ni el propósito. ¿Qué es `personal2`? Hay que abrir el archivo para saber que es "ubicación".
-- **Atomic Design (2)**: `atoms/`, `molecules/`, `organisms/` son niveles de abstracción que requieren un framework de componentes real (React, Vue). En vanilla JS sin virtual DOM, crear un `Button.js` atómico es ceremonia sin beneficio.
-- **Feature folders (3)**: Cada paso del formulario encaja en un archivo bajo `steps/`; el panel (`admin.js`) es una vista extra pero sigue siendo una pieza. Partir cada paso en `features/personal/`, `features/education/`… con 1–2 archivos por carpeta añade ruido sin bounded contexts claros.
+- **Flat modules (2)**: `personal.js`, `personal2.js`... no dice nada sobre el orden ni el propósito. ¿Qué es `personal2`? Hay que abrir el archivo para saber que es "ubicación".
+- **Atomic Design (3)**: `atoms/`, `molecules/`, `organisms/` son niveles de abstracción que requieren un framework de componentes real (React, Vue). En vanilla JS sin virtual DOM, crear un `Button.js` atómico es ceremonia sin beneficio.
+- **Feature folders (4)**: Cada paso del formulario encaja en un archivo bajo `steps/`; el panel (`admin.js`) es una vista extra pero sigue siendo una pieza. Partir cada paso en `features/personal/`, `features/education/`… con 1–2 archivos por carpeta añade ruido sin bounded contexts claros.
 - **Monorepo packages (5)**: `packages/core/`, `packages/ui-kit/`… encajan en repos con varias apps o equipos. Para una SPA de admisión (formulario + panel), es infraestructura desproporcionada.
 
 ---
