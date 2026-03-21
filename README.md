@@ -13,7 +13,7 @@ Réplica del formulario multi-paso de admisión de [admision.evolve.es](https://
 ## Inicio rápido
 
 ```bash
-git clone <repo-url> && cd sandbox
+git clone https://github.com/lordnitorrinco/valve.git && cd valve
 cp .env.example .env
 make up          # o: docker compose up -d --build
 open http://localhost:8080
