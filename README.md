@@ -2,6 +2,14 @@
 
 Réplica del formulario multi-paso de admisión de [admision.evolve.es](https://admision.evolve.es), con backend PHP y base de datos MySQL, todo orquestado con Docker Compose.
 
+## Documentación
+
+| Documento | Descripción |
+|-----------|-------------|
+| [**SECURITY.md**](./SECURITY.md) | Medidas de seguridad por capa (Nginx, PHP, MySQL, frontend, infra) |
+| [**TECHNICAL.md**](./TECHNICAL.md) | Estructura del repo, flujos de código, Makefile, CI, observabilidad |
+| [**ARCHITECTURE.md**](./ARCHITECTURE.md) | Opciones de arquitectura evaluadas y criterios de elección |
+
 ## Inicio rápido
 
 ```bash
@@ -131,14 +139,6 @@ make test-backend
 make test-frontend
 make test-integration   # requiere docker compose up
 ```
-
-## Documentación adicional
-
-| Archivo | Contenido |
-|---------|-----------|
-| `SECURITY.md` | Medidas de seguridad por capa |
-| `TECHNICAL.md` | Estructura del código y flujos |
-| `ARCHITECTURE.md` | Alternativas de arquitectura evaluadas |
 
 ## Desarrollo
 
