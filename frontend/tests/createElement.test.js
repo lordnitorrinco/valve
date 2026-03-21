@@ -41,6 +41,14 @@ describe('el() - createElement', () => {
     expect(node.textContent).toBe('Hello World');
   });
 
+  // JSON/API numeric fields must render without throwing (admin modal, etc.)
+  it('appends number and boolean children as text', () => {
+    const n = el('span', { className: 'modal-value' }, 42);
+    expect(n.textContent).toBe('42');
+    const b = el('span', null, true);
+    expect(b.textContent).toBe('true');
+  });
+
   // Nested elements as children
   it('appends element children', () => {
     const child = el('span', null, 'inner');

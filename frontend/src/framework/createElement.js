@@ -16,7 +16,7 @@ import { state } from './store.js';
  *  - style (string) → sets via setAttribute
  *  - on*        → adds event listener (e.g. onClick → "click")
  *
- * Children can be strings (→ text nodes), elements, arrays, or null (ignored).
+ * Children can be strings, numbers, booleans (→ text nodes), elements, arrays, or null (ignored).
  *
  * @param {string}   tag       HTML tag name
  * @param {object}   attrs     Attributes/properties to set
@@ -36,7 +36,11 @@ export function el(tag, attrs, ...children) {
   }
   for (const child of children.flat()) {
     if (child == null) continue;
-    node.appendChild(typeof child === 'string' ? document.createTextNode(child) : child);
+    if (typeof child === 'string' || typeof child === 'number' || typeof child === 'boolean') {
+      node.appendChild(document.createTextNode(String(child)));
+    } else if (child instanceof Node) {
+      node.appendChild(child);
+    }
   }
   return node;
 }
