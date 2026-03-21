@@ -108,6 +108,16 @@ describe('showErrors', () => {
     expect(input.classList.contains('error')).toBe(true);
   });
 
+  // Skips groups without data-field name
+  it('ignores field-group without data-field', () => {
+    const group = el('div', { className: 'field-group' });
+    group.appendChild(el('input', { className: 'modern-input' }));
+    document.body.appendChild(group);
+    state.errors = { orphan: 'x' };
+    showErrors();
+    expect(group.querySelector('.field-error')).toBeNull();
+  });
+
   // Clears DOM and classes when error removed from state
   it('removes error when field has no error', () => {
     const input = el('input', { className: 'modern-input error' });
@@ -126,6 +136,11 @@ describe('showErrors', () => {
 
 // Single-field cleanup for live validation UX
 describe('clearFieldError', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+    state.errors = {};
+  });
+
   // Syncs state + DOM for one field key
   it('removes error from state and DOM', () => {
     state.errors = { name: 'Required' };
@@ -148,5 +163,37 @@ describe('clearFieldError', () => {
     state.errors = {};
     clearFieldError('name', null);
     expect(state.errors).toEqual({});
+  });
+
+  // Deletes state but skips DOM when element is null (branch: if (!element) return)
+  it('clears state only when element is null', () => {
+    state.errors = { email: 'bad' };
+    clearFieldError('email', null);
+    expect(state.errors).not.toHaveProperty('email');
+  });
+
+  // Wrapper without .field-group: use element as root for removing .field-error
+  it('clears error when clearing from a wrapper without field-group class', () => {
+    state.errors = { email: 'bad' };
+    const wrap = document.createElement('div');
+    const input = el('input', { className: 'modern-input error' });
+    wrap.appendChild(input);
+    wrap.appendChild(el('p', { className: 'field-error' }, 'bad'));
+    document.body.appendChild(wrap);
+    clearFieldError('email', wrap);
+    expect(state.errors).not.toHaveProperty('email');
+    expect(wrap.querySelector('.field-error')).toBeNull();
+  });
+
+  // Branch: no .field-error node left (already removed) — if (errorEl) is false
+  it('still clears state and class when .field-error was already removed from DOM', () => {
+    state.errors = { name: 'Required' };
+    const input = el('input', { className: 'modern-input error' });
+    const group = el('div', { className: 'field-group' }, input);
+    group.dataset.field = 'name';
+    document.body.appendChild(group);
+    clearFieldError('name', input);
+    expect(state.errors).not.toHaveProperty('name');
+    expect(input.classList.contains('error')).toBe(false);
   });
 });

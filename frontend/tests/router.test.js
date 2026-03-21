@@ -87,6 +87,17 @@ describe('router', () => {
       expect(document.querySelector('#mount-test')).not.toBeNull();
     });
 
+    it('focuses #main-content when present (a11y skip target)', () => {
+      document.body.innerHTML = '<div id="app"></div><main id="main-content" tabindex="-1"></main>';
+      registerView('personal', () => document.createElement('div'));
+      initApp();
+      const main = document.getElementById('main-content');
+      const focusSpy = vi.spyOn(main, 'focus');
+      goTo('personal');
+      expect(focusSpy).toHaveBeenCalledWith({ preventScroll: true });
+      focusSpy.mockRestore();
+    });
+
     it('removes old content for non-step-views (no animation)', () => {
       registerView('ns1', () => { const d = document.createElement('div'); d.id = 'ns1'; return d; });
       registerView('ns2', () => { const d = document.createElement('div'); d.id = 'ns2'; return d; });

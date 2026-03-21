@@ -111,6 +111,28 @@ class WebhookForwarderTest extends TestCase
     }
 
     #[Test]
+    public function normalizeWebhookPayload_maps_lead_id_to_id(): void
+    {
+        $in = [
+            'firstName'   => 'A',
+            'utm_source'  => 'newsletter',
+            'lead_id'     => 'lead-123',
+        ];
+        $out = WebhookForwarder::normalizeWebhookPayload($in);
+        $this->assertSame('lead-123', $out['id']);
+        $this->assertSame('newsletter', $out['utm_source']);
+        $this->assertArrayNotHasKey('lead_id', $out);
+    }
+
+    #[Test]
+    public function normalizeWebhookPayload_omits_empty_lead_id(): void
+    {
+        $out = WebhookForwarder::normalizeWebhookPayload(['lead_id' => '', 'utm_source' => 'x']);
+        $this->assertArrayNotHasKey('id', $out);
+        $this->assertArrayNotHasKey('lead_id', $out);
+    }
+
+    #[Test]
     public function forward_sends_all_form_data(): void
     {
         $data = [

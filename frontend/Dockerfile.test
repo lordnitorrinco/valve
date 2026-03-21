@@ -14,4 +14,4 @@ COPY src/ src/
 COPY tests/ tests/
 
 # Run tests by default
-CMD ["npx", "vitest", "run"]
+CMD ["npx", "vitest", "run", "--coverage"]

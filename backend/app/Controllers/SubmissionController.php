@@ -144,7 +144,7 @@ class SubmissionController
             'countryOfResidence', 'nationality', 'nationalityOther', 'workPermit',
             'relocation', 'dateOfBirth', 'education', 'studyArea', 'graduationYear',
             'englishLevel', 'situation', 'jobRole', 'techYearsExperience',
-            'linkedinUrl', 'willingToTrain', 'utm_source', 'lead_id',
+            'linkedinUrl', 'willingToTrain', 'utm_source',
         ];
 
         $data = [];
@@ -152,6 +152,13 @@ class SubmissionController
             $raw = trim($_POST[$field] ?? '');
             $data[$field] = strip_tags($raw);
         }
+        // Lead id from query `id` (spec) or legacy POST `lead_id` → stored as lead_id in DB
+        $rawLead = trim($_POST['id'] ?? '');
+        if ($rawLead === '') {
+            $rawLead = trim($_POST['lead_id'] ?? '');
+        }
+        $data['lead_id'] = strip_tags($rawLead);
+
         return $data;
     }
 

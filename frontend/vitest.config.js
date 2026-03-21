@@ -8,5 +8,15 @@ export default defineConfig({
     environment: 'jsdom',
     include: ['tests/**/*.test.js'],
     globals: true,
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.js'],
+      thresholds: {
+        lines: 100,
+        statements: 100,
+        functions: 100,
+        branches: 100,
+      },
+    },
   },
 });

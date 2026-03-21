@@ -249,6 +249,21 @@ describe('step modules', () => {
       form.dispatchEvent(new Event('submit', { cancelable: true }));
       expect(goTo).toHaveBeenCalledWith('experience');
     });
+
+    it('form submit with validation errors does not navigate', () => {
+      state.formData = {
+        phonePrefix: '+34',
+        education: 'FP Grado Superior',
+        englishLevel: '',
+        graduationYear: '2020',
+        studyArea: 'Ingeniería y Arquitectura'
+      };
+      goTo.mockClear();
+      const container = renders.education();
+      document.body.appendChild(container);
+      container.querySelector('form').dispatchEvent(new Event('submit', { cancelable: true }));
+      expect(goTo).not.toHaveBeenCalledWith('experience');
+    });
   });
 
   describe('4-experience', () => {
@@ -302,6 +317,21 @@ describe('step modules', () => {
       const form = container.querySelector('form');
       form.dispatchEvent(new Event('submit', { cancelable: true }));
       expect(goTo).toHaveBeenCalledWith('consent');
+    });
+
+    it('form submit with validation errors does not navigate', () => {
+      state.formData = {
+        phonePrefix: '+34',
+        situation: '',
+        techYearsExperience: '',
+        willingToTrain: ''
+      };
+      state.cvFile = null;
+      goTo.mockClear();
+      const container = renders.experience();
+      document.body.appendChild(container);
+      container.querySelector('form').dispatchEvent(new Event('submit', { cancelable: true }));
+      expect(goTo).not.toHaveBeenCalledWith('consent');
     });
   });
 
@@ -504,6 +534,52 @@ describe('step modules', () => {
       expect(document.querySelector('.modal').textContent).toContain('Ana García');
     });
 
+    it('opens detail modal on row Enter or Space', async () => {
+      const submissions = [
+        { id: 1, first_name: 'Kb', last_name: 'Test', created_at: '2025-01-15T10:00:00Z' }
+      ];
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        json: () => Promise.resolve({ submissions })
+      });
+
+      const el = renders.admin();
+      document.body.appendChild(el);
+      await vi.waitFor(() => {
+        expect(el.querySelector('tbody tr')).not.toBeNull();
+      });
+      const row = el.querySelector('tbody tr');
+      row.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      expect(document.querySelector('.modal')).not.toBeNull();
+      document.querySelector('.modal-close').click();
+      row.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+      expect(document.querySelector('.modal')).not.toBeNull();
+    });
+
+    it('wraps Tab focus between first and last focusable in modal', async () => {
+      const submissions = [
+        { id: 1, first_name: 'T', last_name: 'U', created_at: '2025-01-15', cv_filename: 'cv.pdf' }
+      ];
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        json: () => Promise.resolve({ submissions })
+      });
+
+      const el = renders.admin();
+      document.body.appendChild(el);
+      await vi.waitFor(() => {
+        expect(el.querySelector('tbody tr')).not.toBeNull();
+      });
+      el.querySelector('tbody tr').click();
+      const modal = document.querySelector('.modal');
+      const closeBtn = document.querySelector('.modal-close');
+      const cvBtn = document.querySelector('.modal-cv-btn');
+      cvBtn.focus();
+      modal.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
+      expect(document.activeElement).toBe(closeBtn);
+      closeBtn.focus();
+      modal.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true }));
+      expect(document.activeElement).toBe(cvBtn);
+    });
+
     it('closes modal on close button click', async () => {
       const submissions = [
         { id: 1, first_name: 'Test', last_name: 'User', created_at: '2025-01-15T10:00:00Z' }
@@ -619,6 +695,129 @@ describe('step modules', () => {
       });
       const dateCell = el.querySelector('.date-cell');
       expect(dateCell.textContent).toBe('—');
+    });
+
+    it('handles API JSON without submissions key', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        json: () => Promise.resolve({ ok: true })
+      });
+      const el = renders.admin();
+      await vi.waitFor(() => {
+        expect(el.querySelector('.admin-empty')).not.toBeNull();
+      });
+      expect(el.textContent).toContain('No hay solicitudes');
+    });
+
+    it('shows phone with default +34 when phone_prefix is missing', async () => {
+      const submissions = [{
+        id: 1, first_name: 'A', last_name: 'B', created_at: '2025-01-15',
+        phone: '600000000'
+      }];
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        json: () => Promise.resolve({ submissions })
+      });
+      const el = renders.admin();
+      document.body.appendChild(el);
+      await vi.waitFor(() => {
+        expect(el.querySelector('tbody tr')).not.toBeNull();
+      });
+      el.querySelector('tbody tr').click();
+      expect(document.querySelector('.modal').textContent).toMatch(/\+34\s+600000000/);
+    });
+
+    it('shows formatted birth date in modal', async () => {
+      const submissions = [{
+        id: 1, first_name: 'A', last_name: 'B', created_at: '2025-01-15',
+        date_of_birth: '1990-06-15'
+      }];
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        json: () => Promise.resolve({ submissions })
+      });
+      const el = renders.admin();
+      document.body.appendChild(el);
+      await vi.waitFor(() => {
+        expect(el.querySelector('tbody tr')).not.toBeNull();
+      });
+      el.querySelector('tbody tr').click();
+      expect(document.querySelector('.modal').textContent).toMatch(/15\/06\/1990/);
+    });
+
+    it('shows — for invalid or zero birth date in modal', async () => {
+      const submissions = [{
+        id: 1, first_name: 'A', last_name: 'B', created_at: '2025-01-15',
+        date_of_birth: 0
+      }];
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        json: () => Promise.resolve({ submissions })
+      });
+      const el = renders.admin();
+      document.body.appendChild(el);
+      await vi.waitFor(() => {
+        expect(el.querySelector('tbody tr')).not.toBeNull();
+      });
+      el.querySelector('tbody tr').click();
+      expect(document.querySelector('.modal').textContent).toMatch(/Fecha de nacimiento/);
+      expect(document.querySelector('.modal').textContent).toMatch(/—/);
+    });
+
+    it('modal focus trap ignores non-Tab keys', async () => {
+      const submissions = [
+        { id: 1, first_name: 'X', last_name: 'Y', created_at: '2025-01-15T10:00:00Z' }
+      ];
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        json: () => Promise.resolve({ submissions })
+      });
+      const el = renders.admin();
+      document.body.appendChild(el);
+      await vi.waitFor(() => {
+        expect(el.querySelector('tbody tr')).not.toBeNull();
+      });
+      el.querySelector('tbody tr').click();
+      const modal = document.querySelector('.modal');
+      const closeBtn = document.querySelector('.modal-close');
+      closeBtn.focus();
+      modal.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+      expect(document.activeElement).toBe(closeBtn);
+    });
+
+    it('modal Tab with zero focusables returns early', async () => {
+      const submissions = [
+        { id: 1, first_name: 'X', last_name: 'Y', created_at: '2025-01-15T10:00:00Z' }
+      ];
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        json: () => Promise.resolve({ submissions })
+      });
+      const el = renders.admin();
+      document.body.appendChild(el);
+      await vi.waitFor(() => {
+        expect(el.querySelector('tbody tr')).not.toBeNull();
+      });
+      el.querySelector('tbody tr').click();
+      const modal = document.querySelector('.modal');
+      modal.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      ).forEach((node) => node.remove());
+      modal.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
+      expect(document.querySelector('.modal-backdrop')).not.toBeNull();
+    });
+
+    it('restores focus to table row after closing modal', async () => {
+      const submissions = [
+        { id: 1, first_name: 'X', last_name: 'Y', created_at: '2025-01-15T10:00:00Z' }
+      ];
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        json: () => Promise.resolve({ submissions })
+      });
+      const el = renders.admin();
+      document.body.appendChild(el);
+      await vi.waitFor(() => {
+        expect(el.querySelector('tbody tr')).not.toBeNull();
+      });
+      const row = el.querySelector('tbody tr');
+      row.focus();
+      row.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      document.querySelector('.modal-close').click();
+      expect(document.activeElement).toBe(row);
     });
   });
 });

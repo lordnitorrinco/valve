@@ -177,11 +177,14 @@ export function fieldPhone() {
   const row = el('div', { className: 'phone-row' });
   const prefixWrap = el('div', { className: 'phone-prefix-wrap' });
   const current = PHONE_PREFIXES.find(p => p.code === state.formData.phonePrefix) || PHONE_PREFIXES[0];
+  if (current.code !== state.formData.phonePrefix) {
+    state.formData.phonePrefix = current.code;
+  }
 
   // Prefix selector button showing flag + code
   const prefixBtn = el('button', { type: 'button', className: 'phone-prefix-btn' });
   prefixBtn.appendChild(el('span', null, current.flag));
-  prefixBtn.appendChild(el('span', { className: 'prefix-code' }, state.formData.phonePrefix));
+  prefixBtn.appendChild(el('span', { className: 'prefix-code' }, current.code));
 
   let dropdownOpen = false;
 

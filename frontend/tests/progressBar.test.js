@@ -1,3 +1,17 @@
+import { vi } from 'vitest';
+
+// Form step without STEP_ORDER entry → exercises `STEP_ORDER[view] || 0`
+vi.mock('../src/data/options.js', async (importOriginal) => {
+  const mod = await importOriginal();
+  const FORM_STEPS = new Set(mod.FORM_STEPS);
+  FORM_STEPS.add('__ghost_form_step__');
+  return {
+    ...mod,
+    FORM_STEPS,
+    STEP_ORDER: { ...mod.STEP_ORDER },
+  };
+});
+
 import { createProgressBar, updateProgressBar } from '../src/ui/progress-bar.js';
 import { STEP_NAMES } from '../src/data/options.js';
 
@@ -58,6 +72,15 @@ describe('progress bar', () => {
       expect(bar.style.display).toBe('');
       updateProgressBar('success');
       expect(bar.style.display).toBe('none');
+    });
+
+    it('treats unknown form view step order as 0 (STEP_ORDER fallback)', () => {
+      updateProgressBar('personal');
+      updateProgressBar('__ghost_form_step__');
+      const circles = bar.querySelectorAll('.step-circle');
+      circles.forEach((c) => {
+        expect(c.className).toContain('pending');
+      });
     });
   });
 });

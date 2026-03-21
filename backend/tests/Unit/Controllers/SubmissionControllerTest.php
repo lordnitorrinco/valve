@@ -95,7 +95,7 @@ class SubmissionControllerTest extends TestCase
             'linkedinUrl'        => '',
             'willingToTrain'     => 'yes',
             'utm_source'         => '',
-            'lead_id'            => '',
+            'id'                 => '',
         ];
     }
 
@@ -276,7 +276,7 @@ class SubmissionControllerTest extends TestCase
             'studyArea' => '', 'graduationYear' => '', 'englishLevel' => '',
             'situation' => '', 'jobRole' => '', 'techYearsExperience' => '',
             'linkedinUrl' => '', 'willingToTrain' => '', 'utm_source' => '',
-            'lead_id' => ''];
+            'id' => ''];
 
         $controller = $this->makeController();
 

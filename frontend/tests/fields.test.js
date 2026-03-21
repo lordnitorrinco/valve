@@ -113,6 +113,15 @@ describe('fields', () => {
       expect(input.value).toBe('3');
     });
 
+    it('restores empty string when invalid techYears and no previous value', () => {
+      state.formData.techYearsExperience = '';
+      const group = fieldInput('techYearsExperience', 'Years', '');
+      const input = group.querySelector('input');
+      input.value = 'xyz';
+      input.dispatchEvent(new Event('input'));
+      expect(input.value).toBe('');
+    });
+
     it('uses existing state value as initial input value', () => {
       state.formData.someField = 'preset';
       const group = fieldInput('someField', 'Label', '');
@@ -185,6 +194,14 @@ describe('fields', () => {
   });
 
   describe('fieldPhone', () => {
+    it('falls back to first prefix when phonePrefix is unknown', () => {
+      state.formData.phonePrefix = '+999';
+      const group = fieldPhone();
+      const prefixBtn = group.querySelector('.phone-prefix-btn');
+      expect(prefixBtn.textContent).toContain('🇪🇸');
+      expect(prefixBtn.querySelector('.prefix-code').textContent).toBe('+34');
+    });
+
     it('creates phone row with prefix and input', () => {
       const group = fieldPhone();
       expect(group.dataset.field).toBe('phone');

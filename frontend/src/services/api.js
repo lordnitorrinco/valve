@@ -40,7 +40,7 @@ async function fetchCsrfToken() {
  *
  * The payload includes:
  *  - All form fields from state.formData
- *  - UTM tracking parameters (utm_source, lead_id)
+ *  - UTM tracking: POST fields `utm_source` and `id` (URL query → store / webhook)
  *  - CV file attachment (if uploaded)
  *  - Honeypot field value (should be empty for real users)
  *
@@ -73,7 +73,7 @@ export async function submitForm(button) {
       if (value != null) payload.append(key, value);
     });
     if (tracking.utmSource) payload.append('utm_source', tracking.utmSource);
-    if (tracking.leadId)    payload.append('lead_id', tracking.leadId);
+    if (tracking.leadId)    payload.append('id', tracking.leadId);
     if (state.cvFile)       payload.append('cv_file', state.cvFile);
 
     // Include honeypot field (should be empty for legitimate submissions)

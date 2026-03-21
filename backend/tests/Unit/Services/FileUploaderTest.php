@@ -28,9 +28,17 @@ class FileUploaderTest extends TestCase
 
     protected function tearDown(): void
     {
-        foreach (glob($this->tmpDir . '/*') as $file) unlink($file);
-        if (is_dir($this->tmpDir . '/subdir')) rmdir($this->tmpDir . '/subdir');
-        rmdir($this->tmpDir);
+        foreach ((glob($this->tmpDir . '/*') ?: []) as $path) {
+            if (is_dir($path)) {
+                foreach ((glob($path . '/*') ?: []) as $inner) {
+                    @unlink($inner);
+                }
+                @rmdir($path);
+            } else {
+                @unlink($path);
+            }
+        }
+        @rmdir($this->tmpDir);
     }
 
     private function uploader(array $overrides = []): FileUploader

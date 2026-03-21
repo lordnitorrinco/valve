@@ -9,9 +9,31 @@
  *
  * The forwarding does NOT include CSRF tokens or honeypot fields —
  * only the actual form data that was submitted by the user.
+ *
+ * Payload keys for tracking match the external contract: `utm_source` and `id`
+ * (the internal `lead_id` field is renamed to `id` in the JSON body).
  */
 class WebhookForwarder
 {
+    /**
+     * Build the webhook JSON body: rename `lead_id` → `id` (omit empty).
+     *
+     * @param  array<string, mixed> $data  Sanitized submission data (uses `lead_id` internally)
+     * @return array<string, mixed>
+     */
+    public static function normalizeWebhookPayload(array $data): array
+    {
+        $out = $data;
+        if (array_key_exists('lead_id', $out)) {
+            $lid = $out['lead_id'];
+            unset($out['lead_id']);
+            if ($lid !== '' && $lid !== null) {
+                $out['id'] = $lid;
+            }
+        }
+        return $out;
+    }
+
     /**
      * Forward form data to the specified webhook URL via HTTP POST.
      *
@@ -25,10 +47,12 @@ class WebhookForwarder
     {
         if (empty($url)) return;
 
+        $payload = static::normalizeWebhookPayload($data);
+
         $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_POST           => true,
-            CURLOPT_POSTFIELDS     => json_encode($data),
+            CURLOPT_POSTFIELDS     => json_encode($payload),
             CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => 10,
