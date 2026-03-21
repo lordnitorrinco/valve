@@ -83,7 +83,7 @@ Comandos útiles (`Makefile`):
 | `ALLOWED_ORIGIN` | Origen permitido (CORS) | `http://localhost:8080` |
 | `RATE_LIMIT_MAX` | Máx envíos por IP en ventana | `10` |
 | `RATE_LIMIT_WINDOW_MINUTES` | Ventana de rate limiting | `5` |
-| `FORWARD_WEBHOOK_ENABLED` | Reenviar al webhook externo | `true` (en `.env.example`; pon `false` en prod si no aplica) |
+| `FORWARD_WEBHOOK_ENABLED` | Reenviar al webhook externo | `true` (`.env.example`) |
 | `FORWARD_WEBHOOK_URL` | URL del webhook | `https://n8n.cloud.evolve...` |
 
 ## Endpoints
@@ -140,7 +140,7 @@ make test-frontend
 make test-integration   # requiere docker compose up
 ```
 
-## Desarrollo
+## Comandos Docker
 
 ```bash
 docker compose logs -f

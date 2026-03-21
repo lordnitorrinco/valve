@@ -3,7 +3,7 @@
 
 FROM php:8.3-cli-alpine
 
-# Install extensions: pdo_mysql + curl (same as prod) + pcov for coverage
+# Install extensions: pdo_mysql + curl (same as backend image) + pcov for coverage
 RUN apk add --no-cache libcurl curl-dev autoconf g++ make linux-headers \
     && docker-php-ext-install pdo pdo_mysql curl \
     && pecl install pcov && docker-php-ext-enable pcov \

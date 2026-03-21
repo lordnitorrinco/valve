@@ -7,7 +7,7 @@ use PHPUnit\Framework\MockObject\MockObject;
 /**
  * Unit tests for RateLimiter.
  *
- * Uses mock PDO because the production SQL relies on MySQL-specific
+ * Uses mock PDO because the RateLimiter SQL uses MySQL-specific
  * DATE_SUB/INTERVAL syntax that SQLite cannot parse.
  */
 class RateLimiterTest extends TestCase

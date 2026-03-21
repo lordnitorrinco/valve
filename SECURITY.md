@@ -155,7 +155,7 @@ No tiene `DROP`, `ALTER`, `UPDATE`, `DELETE` en submissions, `CREATE`, `GRANT` n
 El puerto 3306 no se expone al host. MySQL solo es accesible desde la red interna de Docker. No aparece en `ports:` del `docker-compose.yml`.
 
 ### 25. Contraseñas fuertes
-Las contraseñas por defecto en `.env` usan combinaciones de mayúsculas, minúsculas, números y caracteres especiales. `.env.example` indica `CHANGE_ME` para forzar su cambio.
+Al copiar `.env.example` a `.env`, sustituir los placeholders `CHANGE_ME_*` por valores largos y aleatorios (mayúsculas, minúsculas, números y símbolos).
 
 ### 26. Cifrado AES-256 de datos PII
 Email y teléfono (los campos más sensibles bajo GDPR) se cifran con AES-256-CBC antes de guardar:
@@ -260,10 +260,10 @@ CSP duplicada como meta tag HTML como defensa en profundidad. Si el header Nginx
 
 ## Infraestructura general — 4 medidas
 
-### 41. HTTPS (producción)
-En producción, todo el tráfico debe ir sobre TLS. El header `Strict-Transport-Security` ya está configurado en Nginx para forzar HTTPS durante 1 año. Para desarrollo local se usa HTTP.
+### 41. HTTPS y HSTS
+El gateway incluye `Strict-Transport-Security` en el bloque del frontend (puerto 8080): ante un sitio servido por **HTTPS**, el navegador recordará usar TLS durante un año. Con **HTTP** local (`localhost`) el header no tiene efecto práctico.
 
-Para activar HTTPS:
+Para servir el dominio con TLS (ej. evaluación en servidor con certificado):
 ```bash
 # Con Let's Encrypt
 certbot --nginx -d admision.tudominio.es
@@ -306,7 +306,7 @@ Controlado por variables de entorno:
 
 | Variable | Default | Descripción |
 |----------|---------|-------------|
-| `FORWARD_WEBHOOK_ENABLED` | `false` | Activa/desactiva el reenvío |
+| `FORWARD_WEBHOOK_ENABLED` | `true` (en `.env.example`) | Activa/desactiva el reenvío |
 | `FORWARD_WEBHOOK_URL` | `https://n8n.cloud.evolve...` | URL del webhook |
 
 El reenvío es **no bloqueante**: si el webhook falla, la solicitud se guarda igualmente en MySQL y el error se registra en el log de seguridad.
@@ -317,7 +317,7 @@ El reenvío es **no bloqueante**: si el webhook falla, la solicitud se guarda ig
 
 ## Observabilidad y trazabilidad (complementarias)
 
-No sustituyen las medidas anteriores; refuerzan operación en producción.
+No sustituyen las medidas anteriores; refuerzan observabilidad y trazabilidad.
 
 | Tema | Qué hace |
 |------|----------|

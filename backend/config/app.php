@@ -3,9 +3,9 @@
 /**
  * Application configuration.
  *
- * All sensitive values are loaded from environment variables,
- * with fallbacks for local development only.
- * In production, every value MUST be set via .env / Docker env.
+ * Los valores sensibles se cargan desde variables de entorno;
+ * los fallbacks solo facilitan un arranque rápido en local.
+ * En evaluación o despliegue, define todo en `.env` o en el entorno de Docker.
  */
 return [
     // Database connection settings
@@ -26,7 +26,7 @@ return [
 
     // Security settings
     'security' => [
-        'encryption_key'    => getenv('ENCRYPTION_KEY') ?: 'change-me-in-production-32chars!',
+        'encryption_key'    => getenv('ENCRYPTION_KEY') ?: 'change-me-32char-placeholder-key!!',
         'csrf_secret'       => getenv('CSRF_SECRET') ?: 'change-me-csrf-secret',
         'allowed_origin'    => getenv('ALLOWED_ORIGIN') ?: 'http://localhost:8080',
         'rate_limit_max'    => (int) (getenv('RATE_LIMIT_MAX') ?: 10),
